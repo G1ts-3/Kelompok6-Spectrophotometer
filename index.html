@@ -33,7 +33,7 @@
 
     <div class="workbench">
       <section class="tray-section cuvette-panel" aria-label="Isi kuvet">
-      <div class="tray-title"><h2>Isi kuvet</h2><p><b>Kuvet belakang selalu berisi blanko atau standar.</b></p></div>
+      <div class="tray-title"><h2>Isi kuvet</h2><p><b>Kuvet merah di belakang berisi aquades; larutan terpilih masuk ke kuvet abu di depan.</b></p></div>
       <div class="tray-group"><span class="group-label">BLANKO</span><div id="blank-solutions" class="solution-row"></div></div>
       <div class="tray-group"><span class="group-label">STANDAR</span><div id="standard-solutions" class="solution-row"></div></div>
       <div class="tray-group"><span class="group-label">DERET SAMPEL</span><div id="sample-solutions" class="solution-row"></div></div>
@@ -43,17 +43,18 @@
       <section class="instrument-section" aria-label="Model instrumen interaktif">
         <div class="stage" id="stage">
           <div class="stage-top"><span class="stage-label">INSTRUMEN <b>01</b> / CARY 100</span><span class="stage-hint">Seret untuk memutar · scroll untuk zoom</span></div>
-          <model-viewer id="instrument" src="spectrophotometer.glb" alt="Model tiga dimensi instrumen spektrofotometer UV–Vis dengan dua kuvet berbaris depan-belakang dan tutup ruang sampel" camera-controls touch-action="pan-y" interaction-prompt="none" camera-orbit="180deg 65deg 1.7m" camera-target="0m 0.17m 0m" min-camera-orbit="auto 20deg auto" max-camera-orbit="auto 90deg auto" min-field-of-view="18deg" max-field-of-view="58deg" field-of-view="30deg" shadow-intensity="1" shadow-softness=".8" exposure="1.2" tone-mapping="neutral">
-            <button class="hotspot" slot="hotspot-1" data-position="0.3m 0.407m 0.16m" data-normal="0m 1m 0m" data-part="0" aria-label="Sumber cahaya">1</button>
-            <button class="hotspot" slot="hotspot-2" data-position="-0.012m 0.285m -0.027m" data-normal="0m 1m 0m" data-part="1" aria-label="Monokromator">2</button>
+          <model-viewer id="instrument" src="spectrophotometer.glb" alt="Model tiga dimensi instrumen spektrofotometer UV–Vis dengan dua kuvet berbaris depan-belakang dan tutup ruang sampel" camera-controls touch-action="pan-y" interaction-prompt="none" camera-orbit="180deg 65deg 1.7m" camera-target="0m 0.17m 0m" min-camera-orbit="auto 0deg 0.25m" max-camera-orbit="auto 90deg auto" min-field-of-view="18deg" max-field-of-view="58deg" field-of-view="30deg" shadow-intensity="1" shadow-softness=".8" exposure=".95" tone-mapping="neutral">
+            <button class="hotspot" slot="hotspot-1" data-position="-0.324m 0.288m -0.027m" data-normal="0m 1m 0m" data-part="0" aria-label="Sumber cahaya di sisi kanan">1</button>
+            <button class="hotspot" slot="hotspot-2" data-position="-0.259m 0.288m -0.027m" data-normal="0m 1m 0m" data-part="1" aria-label="Monokromator">2</button>
             <button class="hotspot" slot="hotspot-3" data-position="-0.166m 0.325m 0.053m" data-normal="0m 1m 0m" data-part="2" aria-label="Kuvet blanko (belakang)">3</button>
             <button class="hotspot" slot="hotspot-4" data-position="-0.166m 0.305m -0.107m" data-normal="0m 1m 0m" data-part="3" aria-label="Kuvet sampel (depan)">4</button>
-            <button class="hotspot" slot="hotspot-5" data-position="-0.316m 0.285m -0.027m" data-normal="0m 1m 0m" data-part="4" aria-label="Detektor">5</button>
+            <button class="hotspot" slot="hotspot-5" data-position="-0.012m 0.285m -0.027m" data-normal="0m 1m 0m" data-part="4" aria-label="Detektor di sisi kiri">5</button>
             <button class="hotspot" slot="hotspot-6" data-position="-0.166m 0.21m -0.212m" data-normal="0m 0m -1m" data-part="5" aria-label="Penutup sampel">6</button>
             <button class="hotspot" slot="hotspot-7" data-position="0.496m 0.078m -0.45m" data-normal="0m 0m -1m" data-part="6" aria-label="Tombol daya">7</button>
                       <span class="fill-anchor" slot="hotspot-8" data-position="-0.166m 0.30m -0.107m" data-normal="0m 1m 0m" aria-hidden="true"></span>
           </model-viewer>
           <div class="scan-hud" id="scan-hud" hidden role="status"><span class="hud-dot"></span><b id="hud-title">Scanning</b><span id="hud-nm">200 nm</span><i><em id="hud-bar"></em></i></div>
+          <div class="scan-optics" aria-hidden="true"><span>SATU PANJANG GELOMBANG · DUA JALUR</span><i></i><small>Kanan: sumber → prisma (pelangi) → celah hitam (slit) → pembagi berkas</small><small>Dua kuvet (blanko &amp; sampel) → detektor di kiri</small></div>
           <div class="part-card" id="part-card" hidden><button id="close-part" aria-label="Tutup penjelasan">×</button><span id="part-number"></span><strong id="part-title"></strong><p id="part-copy"></p></div>
           <div class="stage-bottom">
             <div class="stage-actions">
@@ -66,13 +67,13 @@
         </div>
         <div class="flow-strip" aria-label="Jalur cahaya dalam instrumen">
           <span class="flow-caption">DI DALAM ALAT</span>
-          <span>Sumber cahaya</span><i aria-hidden="true"></i><span>Monokromator</span><i aria-hidden="true"></i><span>Dua kuvet</span><i aria-hidden="true"></i><span>Detektor</span>
+          <span>Sumber cahaya (kanan)</span><i aria-hidden="true"></i><span>Monokromator (prisma + celah)</span><i aria-hidden="true"></i><span>Blanko + sampel</span><i aria-hidden="true"></i><span>Detektor (kiri)</span>
         </div>
       </section>
 
       <section class="connection-section" aria-label="Koneksi alat dan komputer">
-        <div class="pc-unit ucp"><span class="pc-led"></span><b>UCP</b><small>Pengendali alat spektrofotometer</small></div>
-        <div class="pc-unit cpu"><span class="pc-led"></span><b>CPU</b><small>Komputer yang menjalankan software</small></div>
+        <div class="pc-unit ucp" id="ucp-unit"><span class="pc-led"></span><b>UCP</b><small>Pengendali alat spektrofotometer</small></div>
+        <div class="pc-unit cpu" id="cpu-unit"><span class="pc-led"></span><b>CPU</b><small>Komputer yang menjalankan software</small></div>
       </section>
 
       <section class="computer-section" aria-label="Komputer dan perangkat lunak simulasi">
@@ -99,14 +100,14 @@
                       <label>Rentang <select id="range-select"><option value="uv">UV · 200–400 nm</option><option value="vis">Vis · 400–800 nm</option><option value="all">Penuh · 200–800 nm</option></select></label>
                       <div class="mode-control" role="group" aria-label="Mode pembacaan"><button id="mode-abs" class="active" aria-pressed="true">Abs</button><button id="mode-t" aria-pressed="false">%T</button></div>
                     </div>
-                    <div class="run-controls"><button class="secondary-button" id="zero-button">Zero · blanko–blanko</button><button class="primary-button" id="scan-button">Mulai scan <span aria-hidden="true">↗</span></button></div>
-                    <p class="inline-message" id="screen-status" role="status">Nyalakan alat di sisi kiri model, lalu tekan Zero (blanko–blanko).</p>
+                    <div class="run-controls"><button class="secondary-button" id="zero-button">Zero + baseline</button><button class="primary-button" id="scan-button">Mulai scan <span aria-hidden="true">↗</span></button></div>
+                    <p class="inline-message" id="screen-status" role="status">Nyalakan alat di sisi kiri model, lalu jalankan Zero + baseline dengan aquades.</p>
                   </section>
                   <section id="panel-cal" role="tabpanel" class="software-panel" hidden>
                     <div class="tab-intro"><strong>Kurva Kalibrasi Deret Standar Thiamin</strong><p>Scan standar 0 sampai 25 ppm secara berurutan pada 246 nm. Titiknya masuk otomatis ke kurva kalibrasi.</p></div>
                     <div class="cal-chart"><svg id="calibration-chart" viewBox="0 0 420 200" role="img" aria-label="Kurva kalibrasi standar"></svg></div>
                     <div id="cal-points" class="cal-points"></div>
-                    <p class="cal-result" id="cal-result">Butuh sedikitnya dua standar untuk membuat garis kalibrasi.</p>
+                    <p class="cal-result" id="cal-result">Ukur setidaknya tiga standar untuk membuat garis kalibrasi.</p>
                     <p class="cal-note">Konsentrasi sampel ditaksir dari garis ini setelah sampel di-scan.</p>
                   </section>
                   <section id="panel-history" role="tabpanel" class="software-panel" hidden>
@@ -122,7 +123,7 @@
           </div>
           <div class="monitor-neck"></div><div class="monitor-foot"></div>
         </div>
-        <div class="under-monitor"><span class="cable-mark"><i></i> Terhubung lewat port belakang instrumen</span><details class="help"><summary>Panduan singkat</summary><p>Nyalakan alat, tekan <b>Zero</b> (aquades di kuvet belakang dan depan), lalu <b>Mulai scan</b>. Standar 0 sampai 25 ppm atau Presisi 1 sampai 5 berjalan berurutan: setelah satu selesai, larutan berikutnya otomatis masuk kuvet depan. Ganti kelompok larutan berarti Zero lagi. Klik titik pada kurva untuk membaca panjang gelombang. Buka Kurva kalibrasi atau Riwayat kapan saja.</p></details></div>
+        <div class="under-monitor"><span class="cable-mark"><i></i> Terhubung lewat port belakang instrumen</span><details class="help"><summary>Panduan singkat</summary><p>Nyalakan alat, jalankan <b>Zero + baseline</b> (aquades di kedua kuvet), lalu <b>Mulai scan</b>. Satu tombol ini menjalankan pembacaan nol dan koreksi sepanjang rentang. Standar 0 sampai 25 ppm atau Presisi 1 sampai 5 berjalan berurutan: setelah satu selesai, larutan berikutnya otomatis masuk kuvet depan. Ganti kelompok larutan berarti kalibrasi ulang. Klik titik pada kurva untuk membaca panjang gelombang. Buka Kurva kalibrasi atau Riwayat kapan saja. Cahaya putih ada sebelum monokromator; sesudahnya kedua kuvet dilalui satu panjang gelombang yang sama. UV tidak tampak oleh mata, sehingga ditandai ungu dalam simulasi.</p></details></div>
       </section>
     </div>
 

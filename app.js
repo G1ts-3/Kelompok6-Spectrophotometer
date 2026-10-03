@@ -5,11 +5,11 @@
   const viewer = $('instrument');
   const ranges = {uv:[200,400],vis:[400,800],all:[200,800]};
   const parts = [
-    ['Sumber cahaya','Lampu deuterium dan wolfram menyediakan cahaya UV dan tampak.','150deg 53deg .80m','.29m .38m .15m'],
-    ['Monokromator','Memilih satu panjang gelombang, lalu cahaya dibagi menjadi dua berkas sejajar yang melintas dari sisi kiri ke sisi kanan ruang sampel.','220deg 45deg .52m','-.012m .25m -.027m'],
-    ['Kuvet blanko','Posisi merah di barisan belakang selalu berisi blanko atau standar sebagai pembanding, baik saat Zero maupun saat scan.','195deg 40deg .5m','-.166m .255m .053m'],
+    ['Sumber cahaya','Lampu menyediakan cahaya sebelum panjang gelombang dipilih; posisinya di sisi kanan jalur optik.','150deg 53deg .80m','-.324m .25m -.027m'],
+    ['Monokromator','Pemisahan spektrum berlangsung di dalam komponen ini. Hanya satu panjang gelombang terpilih yang terbagi ke kedua kuvet, dari kanan ke kiri.','200deg 42deg .55m','-.259m .25m -.027m'],
+    ['Kuvet blanko','Posisi merah di barisan belakang berisi aquades sebagai pembanding saat pemindaian.','195deg 40deg .5m','-.166m .255m .053m'],
     ['Kuvet sampel','Posisi abu di barisan depan menampung larutan yang dipilih dari baki.','195deg 40deg .45m','-.166m .255m -.107m'],
-    ['Detektor','Mengukur cahaya yang lolos dari kuvet belakang dan depan untuk menghitung absorbansi.','145deg 45deg .5m','-.316m .25m -.027m'],
+    ['Detektor','Di sisi kiri, menerima dua jalur cahaya sesudah melewati kuvet blanko dan sampel.','145deg 45deg .5m','-.012m .25m -.027m'],
     ['Ruang sampel','Tutup gelap melindungi kedua kuvet dari cahaya luar selama pembacaan.','180deg 42deg .74m','-.166m .27m -.027m'],
     ['Tombol daya','Sakelar instrumen berada di sisi kiri depan. Komputer memiliki daya terpisah.','186deg 77deg .66m','.45m .07m -.40m'],
   ];
@@ -24,15 +24,14 @@
   const busy = () => state.measuring || state.filling;
   const wait = ms => new Promise(r=>setTimeout(r,ms));
   const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Klip LidMotion berdurasi 1 detik dan diputar dengan LoopRepeat. Jika currentTime tepat sama
-  // dengan durasi, three.js membungkusnya ke 0 sehingga tutup kembali tertutup. Karena itu posisi
-  // 'terbuka penuh' dipetakan sedikit di bawah durasi klip (selisih 0,1% tidak terlihat).
+  // The 2-second clip holds its final open pose for a full second. Scrub only
+  // the first second: even a renderer update at the end cannot wrap to closed.
   function applyLidPose(progress) {
     if (!state.modelReady) return;
     const p=Math.max(0,Math.min(1,progress));
-    const time=p*(viewer.duration||1)*0.999;
-    const set=()=>{ viewer.pause(); viewer.currentTime=time; };
-    viewer.animationName='LidMotion'; set(); requestAnimationFrame(set);
+    if (viewer.animationName!=='LidMotion') viewer.animationName='LidMotion';
+    viewer.pause();
+    viewer.currentTime=p;
   }
   const getSolution = id => core.solutions.find(s => s.id===id) || core.solutions[0];
   // Urutan kerja: standar 0-25 ppm dan Presisi 1-5 + Akurasi berjalan berurutan.
@@ -60,8 +59,20 @@
       $(`tab-${tab}`).setAttribute('aria-selected',String(name===tab));
       $(`panel-${tab}`).hidden=tab!==name;
     }
+    const bar=$('formula-bar'); bar.hidden = bar.dataset.has!=='1' || name==='history';
+  }
+  // UCP menyala bersama alat, CPU bersama komputer (monitor): LED berkedip lalu menyala, garis ventilasi menyala bergantian.
+  function syncUnit(el,on) {
+    if (!el || el.classList.contains('on')===on) return;
+    el.classList.toggle('on',on);
+    clearTimeout(el._t);
+    el.classList.toggle('powering-off',!on);
+    if (!on) el._t=setTimeout(()=>el.classList.remove('powering-off'),900);
   }
   function updateControls() {
+    syncUnit($('ucp-unit'),state.instrumentOn);
+    syncUnit($('cpu-unit'),state.monitorOn);
+    document.querySelector('.computer-section').classList.toggle('on',state.monitorOn);
     $('connection').classList.toggle('online',state.instrumentOn);
     $('connection').lastChild.textContent=state.instrumentOn?'Alat tersambung':'Alat mati';
     $('instrument-power').setAttribute('aria-pressed',String(state.instrumentOn));
@@ -115,6 +126,8 @@
     setMaterial('SampleLiquid',[...rgb(sol.color),(sol.alpha ?? .72)*(findLiquid()?1:Math.max(0,state.level))]);
     setMaterial('PowerLED',state.instrumentOn?[.29,.96,.57,1]:[.22,.35,.33,1]);
     setEmissive('PowerLED',state.instrumentOn?[.14,.78,.38]:[0,0,0]);
+    setMaterial('SourceGlow',state.instrumentOn?[.91,.97,1,1]:[.18,.28,.33,1]);
+    setEmissive('SourceGlow',state.instrumentOn?[.65,.76,.88]:[0,0,0]);
   }
   // ---- Tinggi cairan di kuvet depan: skala sumbu-Y node 'SampleLiquid' (alas tetap), cadangan: transparansi.
   let liq;
@@ -155,19 +168,78 @@
       requestAnimationFrame(tick);
     });
   }
-  // ---- Animasi scanning: kamera zoom ke ruang kuvet, tutup menjadi tembus pandang, berkas cahaya menyapu panjang gelombang.
+  // ---- The scanning cutaway shows a short white segment BEFORE wavelength
+  // selection and two rays of ONE selected wavelength across the cells.
   const lidMats=['GraphiteCover','CoverInset'], lidBase={};
-  const scanCamera={orbit:'184deg 50deg .55m',target:'-.166m .262m -.027m'};
+  // About 58 cm of vertical framing leaves the well, both cells and some chassis
+  // visible on desktop; the aspect term protects the same composition on mobile.
+  function scanView() {
+    const st=$('stage'), aspect=st.clientWidth/Math.max(1,st.clientHeight), t=2*Math.tan(Math.PI/12);   // FOV vertikal 30°
+    const d=Math.max(.58/t,.54/(t*aspect),.96);
+    return {orbit:`180deg 40deg ${d.toFixed(2)}m`,target:'-.166m .262m -.027m'};
+  }
   function setLidGhost(g) {            // 0 = tutup gelap utuh, 1 = kaca asap tembus pandang
     for (const n of lidMats) {
       try {
         const mat=viewer.model?.materials.find(m=>m.name===n); if(!mat) continue;
         lidBase[n]=lidBase[n]||[...mat.pbrMetallicRoughness.baseColorFactor];
-        const b=lidBase[n], tint=[.5,.62,.68];
+        const b=lidBase[n], tint=[.19,.27,.32];
         if (typeof mat.setAlphaMode==='function') mat.setAlphaMode(g>.001?'BLEND':'OPAQUE');
         mat.pbrMetallicRoughness.setBaseColorFactor([0,1,2].map(i=>b[i]+(tint[i]-b[i])*g).concat(1-.84*g));
       } catch { /* material belum siap */ }
     }
+  }
+  function setMonoGhost(g) {          // rumah monokromator menjadi kaca asap agar prisma terlihat
+    try {
+      const mat=viewer.model?.materials.find(m=>m.name==='MonoHousing'); if(!mat) return;
+      const b=[.28,.38,.43], tint=[.16,.24,.30];
+      if (typeof mat.setAlphaMode==='function') mat.setAlphaMode(g>.001?'BLEND':'OPAQUE');
+      mat.pbrMetallicRoughness.setBaseColorFactor([0,1,2].map(i=>b[i]+(tint[i]-b[i])*g).concat(1-.78*g));
+    } catch { /* material belum siap */ }
+  }
+  const nodeCache={};
+  function findNodeByMat(name) {
+    if (name in nodeCache) return nodeCache[name];
+    nodeCache[name]=null;
+    try {
+      const sym=Object.getOwnPropertySymbols(viewer).find(x=>x.description==='scene'), scene=sym && viewer[sym];
+      scene?.traverse(o=>{ if(!nodeCache[name] && o.isMesh && o.material?.name===name) nodeCache[name]={o,x0:o.position.x}; });
+    } catch { nodeCache[name]=null; }
+    return nodeCache[name];
+  }
+  // Pelangi tetap lurus (tidak miring): ujungnya rata menempel pada pelat slit hitam. Untuk memilih panjang gelombang,
+  // pelangi bergeser sepanjang sisi prisma (sumbu z) sehingga pita terpilih tepat berada di celah.
+  let rotor, rotorZ0=0;
+  function setFanAngle(nm) {
+    if (rotor===undefined) {
+      rotor=null;
+      try { const sym=Object.getOwnPropertySymbols(viewer).find(x=>x.description==='scene'); rotor=viewer[sym]?.getObjectByName('MonoRotor')||null; if(rotor) rotorZ0=rotor.position.z; } catch { rotor=null; }
+    }
+    if (!rotor) return;
+    const mids=[410,445,475,530,580,610,680], e=Math.min(Math.max(nm,mids[0]),mids[6]);
+    let i=0; while (i<5 && e>mids[i+1]) i++;
+    const f=i+(e-mids[i])/(mids[i+1]-mids[i]);          // posisi pita (0 = violet ... 6 = merah)
+    const dz=-.022/2+(f+.5)*.022/7;                      // jarak pita dari sumbu (m), spread 22 mm
+    rotor.rotation.y=0; rotor.position.z=rotorZ0-dz;     // geser, bukan putar
+  }
+  let curT=1;
+  // Pulsa foton kecil bergerak sepanjang kedua jalur (arah cahaya), dan meredup di jalur sampel setelah menembus larutan.
+  function startPulses() {
+    const nodes=[['PulseRef',findNodeByMat('PulseRef')],['PulseSample',findNodeByMat('PulseSample')]];
+    let alive=true;
+    const loop=now=>{
+      if (!alive) return;
+      const ph=(now/1000*.85)%1, xs=.213-ph*.183;
+      nodes.forEach(([name,n],i)=>{
+        if (!n) return;
+        n.o.position.x=n.x0-(xs-.213);
+        const dim = i===1 && xs<.1945 ? .2+.8*curT : 1, edge=Math.min(1,ph*6,(1-ph)*6);
+        setMaterial(name,[1,1,1,.9*dim*edge]);
+      });
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+    return () => { alive=false; for (const [name] of nodes) setMaterial(name,[1,1,1,0]); };
   }
   function tween(ms,fn) {
     return new Promise(resolve=>{
@@ -183,26 +255,94 @@
   }
   async function opticalSweep(solution,ms,title,onProgress) {
     const [start,end]=ranges[state.range], cam=saveCamera();
-    viewer.cameraOrbit=scanCamera.orbit; viewer.cameraTarget=scanCamera.target;   // zoom ke kuvet
+    const sv=scanView(); viewer.fieldOfView='30deg'; viewer.cameraOrbit=sv.orbit; viewer.cameraTarget=sv.target;   // zoom dari atas ke kuvet
     await setLid(false);
-    await tween(600,p=>setLidGhost(p));                                           // tutup jadi tembus pandang
+    await tween(600,p=>{ setLidGhost(p); setMonoGhost(p); });                      // tutup & rumah monokromator jadi tembus pandang
     showBeam(true);
-    $('hud-title').textContent=title; $('scan-hud').hidden=false;
+    await wait(reduced()?0:280);                                             // lampu menyala lebih dulu
+    await tween(420,p=>beamLook(start,solution,p));                           // kemudian prisma, spektrum, dan dua jalur terpilih
+    $('scan-hud').hidden=false;
+    const stopPulses=startPulses();
     await tween(ms,p=>{
       const nm=start+(end-start)*p;
-      $('hud-nm').textContent=`${Math.round(nm)} nm`; $('hud-bar').style.width=`${(p*100).toFixed(1)}%`;
-      setMaterial('SampleBeam',[1,.68,.29,.12+.62*Math.pow(10,-core.absorbance(solution,nm))]);   // berkas sampel meredup bila diserap
+      const col=css(beamLook(nm,solution));
+      $('hud-title').textContent=`${title} · ${lampFor(nm).name}`;
+      $('hud-nm').textContent=`${Math.round(nm)} nm${nm<400?' · UV':''}`; $('hud-nm').style.color=col; $('hud-bar').style.width=`${(p*100).toFixed(1)}%`; $('hud-bar').style.background=col;
       if (onProgress) onProgress(p,nm);
     });
+    stopPulses();
     $('scan-hud').hidden=true; showBeam(false);
-    await tween(500,p=>setLidGhost(1-p));
+    await tween(500,p=>{ setLidGhost(1-p); setMonoGhost(1-p); });
     if (cam) { viewer.cameraOrbit=cam.orbit; viewer.cameraTarget=cam.target; }     // kembali ke sudut semula
     await wait(reduced()?0:700);
   }
+  // Warna berkas = warna panjang gelombang yang sedang dipindai. UV (<400 nm) tidak terlihat mata,
+  // jadi digambar ungu-biru kebiruan seperti foto acuan; 400–780 nm mengikuti warna spektrum tampak.
+  function nmToRgb(nm) {
+    if (nm<400) return [.5,.3,1];
+    let r=0,g=0,b=0;
+    if (nm<440) { r=(440-nm)/60; b=1; }
+    else if (nm<490) { g=(nm-440)/50; b=1; }
+    else if (nm<510) { g=1; b=(510-nm)/20; }
+    else if (nm<580) { r=(nm-510)/70; g=1; }
+    else if (nm<645) { r=1; g=(645-nm)/65; }
+    else r=1;
+    const k=nm>700?.35+.65*(780-Math.min(nm,780))/80:1;
+    return [r*k,g*k,b*k].map(v=>Math.min(1,v));
+  }
+  const css = c => `rgb(${c.map(v=>Math.round(v*255)).join(',')})`;
+  // Lampu deuterium untuk UV (190–350 nm), tungsten-halogen untuk Visibel (350–900 nm).
+  function lampFor(nm) { return nm<350 ? {name:'Lampu deuterium',col:[.50,.42,1]} : {name:'Lampu tungsten-halogen',col:[1,.86,.62]}; }
+  const BANDS=[['BandViolet',[.56,.12,1],410,22],['BandIndigo',[.30,.10,.95],445,22],['BandBlue',[.10,.45,1],475,24],
+    ['BandGreen',[.12,.90,.25],530,34],['BandYellow',[1,.92,.10],580,24],['BandOrange',[1,.50,.05],610,22],['BandRed',[1,.10,.08],680,55]];
+  function beamLook(nm,solution,level=1) {
+    const c=nmToRgb(nm), T=Math.pow(10,-core.absorbance(solution,nm)), e=Math.max(nm,405), lamp=lampFor(nm);
+    curT=T;
+    const hot=c.map(v=>.45+.55*v), L=level;                 // inti berkas dibuat lebih terang daripada warna dasarnya
+    // lampu + berkas putih sebelum prisma
+    setMaterial('SourceBulb',[...lamp.col.map(v=>.4+.6*v),L]); setEmissive('SourceBulb',lamp.col.map(v=>v*L));
+    setMaterial('SourceHalo',[...lamp.col,.24*L]); setEmissive('SourceHalo',lamp.col);
+    const wh=lamp.col.map(v=>.7+.3*v);
+    setMaterial('IncidentWhiteBeam',[...wh,.97*L]); setEmissive('IncidentWhiteBeam',wh.map(v=>v*.9*L));
+    setMaterial('IncidentGlow',[...lamp.col,.2*L]); setEmissive('IncidentGlow',lamp.col);
+    // prisma: pita yang sesuai panjang gelombang menyala, pita lain redup
+    for (const [n,col,mid,w] of BANDS) {
+      const k=Math.exp(-Math.pow((e-mid)/w,2));
+      setMaterial(n,[...col,(.3+.65*k)*L]); setEmissive(n,col.map(v=>v*(.4+.9*k)));
+    }
+    for (const n of ['SplitterGlass','LensGlass']) setMaterial(n,[.74,.9,1,.34*L]);
+    setMaterial('MonoPrismGlass',[.60,.64,.68,.92*L]);   // prisma abu-abu pekat seperti diagram acuan
+    setFanAngle(nm);
+    // sesudah celah: satu berkas satu warna menuju pembagi berkas
+    setMaterial('SelectedBeam',[...hot,.98*L]); setEmissive('SelectedBeam',c.map(v=>v*L));
+    setMaterial('SelectedGlow',[...c,.26*L]); setEmissive('SelectedGlow',c);
+    // dua jalur berwarna sama: inti terang + halo lembut; jalur sampel meredup bila diserap
+    setMaterial('ReferenceBeam',[...hot,.98*L]); setEmissive('ReferenceBeam',c.map(v=>v*L));
+    setMaterial('ReferenceGlow',[...c,.22*L]); setEmissive('ReferenceGlow',c);
+    setMaterial('SampleBeam',[...hot,(.2+.78*T)*L]); setEmissive('SampleBeam',c.map(v=>v*(.3+.7*T)*L));
+    setMaterial('SampleGlow',[...c,(.04+.18*T)*L]); setEmissive('SampleGlow',c);
+    // cairan di kuvet ikut berpendar halus oleh cahaya yang lewat
+    setEmissive('BlankLiquid',c.map(v=>v*.30*L)); setEmissive('SampleLiquid',c.map(v=>v*.30*T*L));
+    setMaterial('LightWindow',[...c.map(v=>.25+.75*v),1]); setEmissive('LightWindow',c.map(v=>v*.85));
+    for (const n of ['PulseRef','PulseSample']) setEmissive(n,c);
+    $('stage').style.setProperty('--ray-color',css(c));
+    return c;
+  }
+  function beamReset() {
+    for (const n of ['SourceBulb','SourceHalo','IncidentWhiteBeam','IncidentGlow','ReferenceGlow','SampleGlow','PulseRef','PulseSample'])
+      setMaterial(n,[1,1,1,0]);
+    for (const n of ['SelectedBeam','SelectedGlow']) setMaterial(n,[1,1,1,0]);
+    if (rotor) { rotor.rotation.y=0; rotor.position.z=rotorZ0; }
+    for (const [n,col] of BANDS) { setMaterial(n,[...col,0]); setEmissive(n,col); }
+    for (const n of ['MonoPrismGlass','SplitterGlass','LensGlass']) setMaterial(n,[.74,.9,1,0]);
+    setEmissive('BlankLiquid',[0,0,0]); setEmissive('SampleLiquid',[0,0,0]);
+    setMaterial('ReferenceBeam',[.39,.83,.98,0]); setEmissive('ReferenceBeam',[.14,.37,.45]);
+    setMaterial('SampleBeam',[1,.68,.29,0]); setEmissive('SampleBeam',[.45,.24,.06]);
+    setMaterial('LightWindow',[.20,.31,.35,1]); setEmissive('LightWindow',[0,0,0]);
+  }
   function showBeam(active) {
     const on=active && state.instrumentOn;
-    setMaterial('ReferenceBeam',[.39,.83,.98,on?.55:0]);
-    setMaterial('SampleBeam',[1,.68,.29,on?.7:0]);
+    if (!on) beamReset();
     $('stage').classList.toggle('scanning',on);
     document.querySelector('.flow-strip').classList.toggle('active',on);
   }
@@ -262,7 +402,7 @@
     $('part-number').textContent=`${String(index+1).padStart(2,'0')} / 07`;
     $('part-title').textContent=parts[index][0];$('part-copy').textContent=parts[index][1];
     $('part-card').hidden=false;
-    if ([1,2,3,4].includes(index)) setLid(true);
+    if ([0,1,2,3,4].includes(index)) setLid(true);
     viewer.cameraOrbit=parts[index][2];viewer.cameraTarget=parts[index][3];viewer.fieldOfView='30deg';
     requestAnimationFrame(positionPartCard);
   }
@@ -291,11 +431,32 @@
     updateWeightPanel(getSolution(id));
     updateModelMaterials();updateControls();
   }
+  // Every refill first frames both cells, including automated changes after a
+  // scan. Restore the exact previous camera after the liquid has settled.
+  function fillView() {
+    const stage=$('stage'), aspect=stage.clientWidth/Math.max(1,stage.clientHeight);
+    const t=2*Math.tan(Math.PI/12);
+    const distance=Math.max(.45/t,.43/(t*aspect),.80);
+    return {orbit:`180deg 34deg ${distance.toFixed(2)}m`,target:'-.166m .255m -.027m'};
+  }
   // Kuvet depan dikosongkan, lalu diisi larutan baru. withVial: botol dari rak terbang ke kuvet dan menuang.
   async function fillFront(id,withVial) {
-    if (state.level>.01) await animateLevel(0,450);
-    putInFront(id);
-    if (withVial && !reduced()) await pourFromVial(id); else await animateLevel(1,1000);
+    const original=state.modelReady?saveCamera():null;
+    if(original) {
+      const target=fillView();
+      viewer.cameraOrbit=target.orbit;viewer.cameraTarget=target.target;
+      await wait(reduced()?0:580);
+    }
+    try {
+      if (state.level>.01) await animateLevel(0,450);
+      putInFront(id);
+      if (withVial && !reduced()) await pourFromVial(id); else await animateLevel(1,1000);
+    } finally {
+      if(original) {
+        viewer.cameraOrbit=original.orbit;viewer.cameraTarget=original.target;
+        await wait(reduced()?0:500);
+      }
+    }
   }
   async function pourFromVial(id) {
     const btn=document.querySelector(`.solution[data-solution="${id}"]`), src=btn?.querySelector('.vial');
@@ -325,8 +486,8 @@
   }
   function frontMessage(solution) {
     const head=`${solution.name} ada di kuvet depan, kuvet belakang berisi aquades.`;
-    if (!state.instrumentOn) return `${head} Nyalakan alat, lalu tekan Zero (blanko–blanko).`;
-    if (!state.blanked) return `${head} Tekan Zero (blanko–blanko) dulu, karena kelompok larutan berubah.`;
+    if (!state.instrumentOn) return `${head} Nyalakan alat, lalu jalankan Zero + baseline dengan aquades di kedua kuvet.`;
+    if (!state.blanked) return `${head} Jalankan Zero + baseline lagi, karena kelompok larutan berubah.`;
     return `${head} Tekan Mulai scan.`;
   }
   async function chooseSolution(id) {
@@ -390,8 +551,14 @@
       return record?[{ppm:s.ppm,abs:record.abs246}]:[];
     });
   }
+  function usableCalibration() {
+    const points=calibrationPoints();
+    if(points.length<3) return null;
+    const fit=core.regression(points);
+    return fit && fit.slope>0 && fit.r2>=.95 ? fit : null;
+  }
   function drawCalibration() {
-    const measured=calibrationPoints(),fit=core.regression(measured);
+    const measured=calibrationPoints(),fit=usableCalibration();
     const x=ppm=>46+ppm/25*356, y=abs=>162-abs/.65*140, mono='font-family="IBM Plex Mono, monospace"';
     let svg='<rect x="0" y="0" width="420" height="200" fill="white"/>';
     for(const level of [0,.2,.4,.6]) svg+=`<line x1="46" y1="${y(level)}" x2="404" y2="${y(level)}" stroke="#e7eff2"/><text x="40" y="${y(level)+3}" text-anchor="end" font-size="9" fill="#9cb1ba">${level.toFixed(1)}</text>`;
@@ -412,7 +579,8 @@
     $('calibration-chart').innerHTML=svg;
     $('cal-points').replaceChildren();
     for(const s of core.standards){const el=document.createElement('span');el.className='cal-point'+(measured.some(p=>p.ppm===s.ppm)?' done':'');el.textContent=`${s.ppm} ppm ${measured.some(p=>p.ppm===s.ppm)?'✓':'·'}`;$('cal-points').append(el);}
-    let message='Butuh sedikitnya dua standar untuk membuat garis kalibrasi.';
+    let message='Ukur setidaknya tiga standar untuk membuat garis kalibrasi.';
+    if(measured.length>=3 && !fit) message='Garis kalibrasi belum layak: diperlukan kemiringan positif dan R² ≥ 0,95.';
     if(fit) {
       message=`A = ${fit.slope.toFixed(4)} × C + ${fit.intercept.toFixed(4)} · R² ${fit.r2.toFixed(4)}`;
       const smp=state.history.find(r=>getSolution(r.solutionId).family==='sampel' && r.abs246!=null);
@@ -423,15 +591,15 @@
   // Rumus perhitungan di bagian bawah monitor, muncul setelah scan.
   function updateFormula(rec) {
     const bar=$('formula-bar');
-    if(!rec || rec.baseline) { bar.hidden=true; return; }
-    const A=rec.readAbs, T=Math.pow(10,-A), fit=core.regression(calibrationPoints()), sol=getSolution(rec.solutionId), f=(v,d)=>v.toFixed(d);
+    if(!rec || rec.baseline) { bar.dataset.has='0'; bar.hidden=true; return; }
+    const A=rec.readAbs, T=Math.pow(10,-A), fit=usableCalibration(), sol=getSolution(rec.solutionId), f=(v,d)=>v.toFixed(d);
     let t=`<span class="fm-h">RUMUS · ${rec.name} pada ${rec.readNm} nm</span>`+
       `A = −log T = <b>${f(A,3)}</b><br>T = 10<sup>−A</sup> = 10<sup>−${f(A,3)}</sup> = ${f(T,3)}<br>%T = T × 100 = <b>${f(T*100,1)} %</b><br>Lambert–Beer: A = ε · b · C`;
     if(fit) {
       t+=`<br>Regresi: A = ${f(fit.slope,4)}·C + ${f(fit.intercept,4)} (R² = ${f(fit.r2,4)})`;
       if(sol.family==='sampel' && rec.abs246!=null) t+=`<br><span class="fm-r">C = (A − ${f(fit.intercept,4)}) / ${f(fit.slope,4)} = ${f(Math.max(0,(rec.abs246-fit.intercept)/fit.slope),2)} ppm</span>`;
-    } else if(sol.family==='standar') t+='<br>Regresi muncul setelah minimal 2 standar di-scan.';
-    bar.innerHTML=t; bar.hidden=false;
+    } else if(sol.family==='standar') t+='<br>Regresi muncul setelah minimal 3 standar di-scan dengan R² ≥ 0,95.';
+    bar.innerHTML=t; bar.dataset.has='1'; bar.hidden=state.tab==='history';
   }
   function drawHistory() {
     const list=$('history-list');list.replaceChildren();
@@ -449,7 +617,7 @@
     if(busy())return;
     state.instrumentOn=!state.instrumentOn;state.blanked=false;state.zeroGroup=null;state.currentScan=null;
     clearTimeout(beamTimer);showBeam(false);updateModelMaterials();drawSpectrum();
-    status(state.instrumentOn?'Alat tersambung. Tekan Zero untuk baseline blanko–blanko (aquades di kuvet belakang dan depan).':'Alat mati. Hasil sebelumnya ada di Riwayat.');
+    status(state.instrumentOn?'Alat tersambung. Jalankan Zero + baseline (aquades di kedua kuvet), lalu scan sampel.':'Alat mati. Hasil sebelumnya ada di Riwayat.');
   }
   async function zero() {
     if(!state.instrumentOn||state.measuring)return;
@@ -458,10 +626,10 @@
     await setLid(true);
     if (state.selected!=='aquades' || state.level<.99) await fillFront('aquades',false);
     drawSpectrum();
-    status('Zero: aquades di kuvet belakang dan kuvet depan (blanko lawan blanko)…');
+    status('Zero + baseline: aquades di kedua kuvet; koreksi seluruh rentang sedang direkam…');
     const [start,end]=ranges[state.range], base=core.spectrum(core.solutions[0],start,end,4);
     let drawn=0;
-    await opticalSweep(core.solutions[0],2600,'Zero · blanko–blanko',(p,nm)=>{
+    await opticalSweep(core.solutions[0],2600,'Zero + baseline · aquades',(p,nm)=>{
       const now=performance.now(); if(now-drawn<90 && p<1) return; drawn=now;
       state.currentScan={solutionId:'aquades',name:'Aquades',baseline:true,start,end,points:base.filter(q=>q.nm<=nm)}; drawSpectrum();
     });
@@ -542,7 +710,7 @@
   document.querySelectorAll('.software-tabs button').forEach(button=>button.addEventListener('click',()=>setTab(button.dataset.tab)));
   $('range-select').addEventListener('change',event=>{
     state.range=event.target.value;state.wavelength=Math.max(ranges[state.range][0],Math.min(ranges[state.range][1],state.wavelength));
-    state.blanked=false;state.zeroGroup=null;state.currentScan=null;drawSpectrum();status('Rentang berubah. Tekan Zero (blanko–blanko) untuk baseline pada rentang ini.');
+    state.blanked=false;state.zeroGroup=null;state.currentScan=null;drawSpectrum();status('Rentang berubah. Jalankan Zero + baseline lagi pada rentang ini.');
   });
   $('mode-abs').addEventListener('click',()=>{state.mode='abs';updateControls();});
   $('mode-t').addEventListener('click',()=>{state.mode='t';updateControls();});

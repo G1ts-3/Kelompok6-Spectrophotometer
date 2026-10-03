@@ -38,8 +38,8 @@ def material(name, color, roughness=.75, metallic=0, alpha=False, emissive=None)
     return len(doc["materials"]) - 1
 
 
-white = material("PorcelainWhite", (.83, .86, .85, 1), .75)
-top = material("WarmWhiteTop", (.94, .95, .91, 1), .78)
+white = material("PorcelainWhite", (.75, .80, .80, 1), .75)
+top = material("WarmWhiteTop", (.86, .89, .86, 1), .78)
 edge = material("SeamWhite", (.68, .74, .75, 1), .68)
 base = material("LowerGraphite", (.18, .21, .23, 1), .79)
 cover = material("GraphiteCover", (.15, .17, .19, 1), .67)
@@ -54,9 +54,30 @@ glass = material("CuvetteGlass", (.78, .91, .94, .36), .13, alpha=True)
 blank_liquid = material("BlankLiquid", (.78, .94, .96, .42), .2, alpha=True)
 sample_liquid = material("SampleLiquid", (.64, .77, .80, .72), .19, alpha=True)
 lamp = material("LampHousing", (.28, .38, .43, 1), .48, .22)
-light = material("LightWindow", (.43, .85, .96, 1), .24, emissive=(.18, .43, .51))
+light = material("LightWindow", (.20, .31, .35, 1), .24, emissive=(0, 0, 0))
+source_glow = material("SourceGlow", (.18, .28, .33, 1), .2, emissive=(0, 0, 0))
 beam_ref = material("ReferenceBeam", (.39, .83, .98, 0), .2, alpha=True, emissive=(.14, .37, .45))
 beam_sample = material("SampleBeam", (1, .68, .29, 0), .2, alpha=True, emissive=(.45, .24, .06))
+# A short white segment exists before the monochromator. The two rays after it
+# always share the selected wavelength, including through both cuvettes.
+incident = material("IncidentWhiteBeam", (.96, .98, 1, 0), .1, alpha=True, emissive=(.75, .79, .85))
+def glow(name, c, a=0):
+    return material(name, (*c, a), .2, alpha=True, emissive=c)
+# Cahaya dibuat berlapis seperti di foto acuan: inti tipis yang terang + halo lembut di sekelilingnya.
+halo_ref, halo_samp = glow("ReferenceGlow", (.5, .4, 1)), glow("SampleGlow", (.5, .4, 1))
+inc_glow = glow("IncidentGlow", (.8, .8, 1))
+bulb_core, bulb_halo = glow("SourceBulb", (.7, .6, 1)), glow("SourceHalo", (.6, .5, 1))
+pulse_ref, pulse_samp = glow("PulseRef", (1, 1, 1)), glow("PulseSample", (1, 1, 1))
+BANDS = [("Violet", (.56, .12, 1)), ("Indigo", (.30, .10, .95)), ("Blue", (.10, .45, 1)),
+         ("Green", (.12, .90, .25)), ("Yellow", (1, .92, .10)), ("Orange", (1, .50, .05)), ("Red", (1, .10, .08))]
+band_mats = [glow("Band" + n, c) for n, c in BANDS]
+sel_core, sel_glow = glow("SelectedBeam", (.5, .4, 1)), glow("SelectedGlow", (.5, .4, 1))
+prism_glass = material("MonoPrismGlass", (.72, .88, 1, 0), .06, alpha=True)
+splitter_glass = material("SplitterGlass", (.70, .86, 1, 0), .08, alpha=True)
+lens_glass = material("LensGlass", (.74, .90, 1, 0), .05, alpha=True)
+slit_black = material("SlitBlack", (.02, .023, .027, 1), .42, .35)   # pelat celah: hitam pekat agar jelas terlihat
+slit_rim = material("SlitRim", (.60, .67, .70, 1), .3, .6)           # tepi terang di bibir celah
+mono_housing = material("MonoHousing", (.28, .38, .43, 1), .48, .22)   # tampak sama seperti sebelumnya; app.js membuatnya bening saat scan
 power_led = material("PowerLED", (.22, .35, .33, 1), .38, emissive=(0, 0, 0))
 print_ink = material("FrontPrint", (.25, .32, .35, 1), .9)
 
@@ -217,14 +238,96 @@ for label, z, holder_mat, liquid_mat in (("Blank", BLANK_Z, red, blank_liquid),
     for side, dx in (("L", -.028), ("R", .028)):
         rounded_box(label + "GlassEdge" + side, (x + dx, .260, z),
                     (.002, .072, .057), .001, glass)
-# Monochromator on the left wall (viewer's left) and detector on the right wall.
-rounded_box("Monochromator", (.010, .245, MID_Z), (.030, .050, .215), .006, lamp)
-rounded_box("Detector", (.322, .245, MID_Z), (.030, .050, .215), .006, lamp)
+def prism_mesh(name, tri, y0, y1, mat, parent=0, upright=False, axis=None):
+    """Prisma segitiga. Default: segitiga pada bidang x-z, diekstrusi pada y (rebah).
+    upright=True: segitiga pada bidang x-y (puncak ke atas), diekstrusi pada z dari y0 ke y1 (berdiri)."""
+    verts, norms, faces = [], [], []
+    axis = axis or ("z" if upright else "y")
+    # a,b = koordinat segitiga; c = sumbu ekstrusi. axis="x": segitiga pada bidang z-y, diekstrusi sepanjang x.
+    def pt(a, b, c): return {"z": (a, b, c), "y": (a, c, b), "x": (c, b, a)}[axis]
+    cx = sum(p[0] for p in tri) / 3; cz = sum(p[1] for p in tri) / 3; cy = (y0 + y1) / 2
+    ctr = pt(cx, cz, cy)
+    def face(pts, n):
+        fc = [sum(p[i] for p in pts) / len(pts) for i in range(3)]
+        if (fc[0]-ctr[0])*n[0] + (fc[1]-ctr[1])*n[1] + (fc[2]-ctr[2])*n[2] < 0: n = tuple(-v for v in n)
+        b0 = len(verts)
+        for p in pts: verts.append(p); norms.append(n)
+        for k in range(1, len(pts) - 1): faces.append((b0, b0 + k, b0 + k + 1))
+    face([pt(x, z, y1) for x, z in tri], pt(0, 0, 1))
+    face([pt(x, z, y0) for x, z in tri], pt(0, 0, -1))
+    for i in range(3):
+        (x1, z1), (x2, z2) = tri[i], tri[(i + 1) % 3]
+        L = math.hypot(x2 - x1, z2 - z1) or 1
+        face([pt(x1, z1, y0), pt(x2, z2, y0), pt(x2, z2, y1), pt(x1, z1, y1)], pt((z2 - z1) / L, -(x2 - x1) / L, 0))
+    return mesh(name, verts, norms, faces, mat, parent)
+
+def sphere(name, ctr, r, mat, seg=16, rings=9):
+    verts, norms, faces = [], [], []
+    for i in range(rings + 1):
+        ph = math.pi * i / rings
+        for j in range(seg):
+            th = 2 * math.pi * j / seg
+            n = (math.sin(ph) * math.cos(th), math.cos(ph), math.sin(ph) * math.sin(th))
+            verts.append(tuple(ctr[k] + r * n[k] for k in range(3))); norms.append(n)
+    for i in range(rings):
+        for j in range(seg):
+            a = i * seg + j; b = i * seg + (j + 1) % seg
+            c2 = (i + 1) * seg + j; d = (i + 1) * seg + (j + 1) % seg
+            faces.extend(((a, c2, b), (b, c2, d)))
+    return mesh(name, verts, norms, faces, mat)
+
+# Source at the right, wavelength selector next, two cells in the middle and
+# detector at the left, matching the visible operator-side teaching cutaway.
+rounded_box("LightSource", (.324, .245, MID_Z), (.030, .057, .082), .006, lamp)
+rounded_box("SourceWindow", (.308, BEAM_Y, MID_Z), (.003, .022, .029), .001, source_glow)
+rounded_box("Monochromator", (.2665, .245, MID_Z), (.078, .056, .205), .006, mono_housing)   # diperlebar agar prisma, pelangi, dan celah muat berurutan
+rounded_box("Detector", (.012, .245, MID_Z), (.030, .050, .215), .006, lamp)
 for label, z in (("Blank", BLANK_Z), ("Sample", SAMPLE_Z)):
-    rounded_box("OpticalSlit" + label, (.0265, BEAM_Y, z), (.003, .014, .019), .001, light)
-    rounded_box("DetectorWindow" + label, (.3055, BEAM_Y, z), (.003, .014, .019), .001, steel)
-for label, z, mat in (("Reference", BLANK_Z, beam_ref), ("Sample", SAMPLE_Z, beam_sample)):
-    rod(label + "BeamThroughCuvette", (.028, BEAM_Y, z), (.305, BEAM_Y, z), .0037, mat, 12)
+    rounded_box("OpticalSlit" + label, (.233, BEAM_Y, z), (.003, .014, .019), .001, light)
+    rounded_box("DetectorWindow" + label, (.030, BEAM_Y, z), (.003, .014, .019), .001, steel)
+for label, z, mat, halo, pulse in (("Reference", BLANK_Z, beam_ref, halo_ref, pulse_ref),
+                                   ("Sample", SAMPLE_Z, beam_sample, halo_samp, pulse_samp)):
+    rod(label + "SplitFromMonochromator", (.232, BEAM_Y, MID_Z), (.213, BEAM_Y, z), .0022, mat, 10)
+    rod(label + "SplitHalo", (.232, BEAM_Y, MID_Z), (.213, BEAM_Y, z), .0065, halo, 10)
+    rod(label + "BeamThroughCuvette", (.213, BEAM_Y, z), (.030, BEAM_Y, z), .0026, mat, 10)
+    rod(label + "BeamHalo", (.213, BEAM_Y, z), (.030, BEAM_Y, z), .0085, halo, 12)
+    rod(label + "Lens", (.199, BEAM_Y, z), (.203, BEAM_Y, z), .017, lens_glass, 24)   # lensa pemfokus sebelum kuvet
+    sphere(label + "Pulse", (.213, BEAM_Y, z), .0055, pulse, 12, 7)                    # pulsa foton, digerakkan app.js
+
+# Lampu di kanan: bola pijar kecil + halo, lalu berkas putih menuju prisma di dalam monokromator.
+sphere("SourceBulbCore", (.306, BEAM_Y, MID_Z), .0085, bulb_core)
+sphere("SourceBulbHalo", (.306, BEAM_Y, MID_Z), .015, bulb_halo)
+# Susunan mengikuti diagram acuan (arah cahaya ke kiri): berkas putih -> PRISMA (segitiga sama sisi, puncak ke atas)
+# -> pelangi melebar -> CELAH hitam -> satu berkas satu warna. Merah di atas, violet di bawah.
+# Prisma berdiri seperti kuvet: sisi segitiganya (alas rata di bawah, puncak di atas) menghadap kotak slit hitam,
+# memanjang sepanjang arah cahaya (sumbu x), bukan menghadap depan/belakang.
+PRISM_X, PRISM_S, PRISM_LX = .284, .028, .007            # pusat x, sisi segitiga sama sisi, setengah panjang sepanjang x
+PRISM_H = PRISM_S * math.sqrt(3) / 2
+APEX_X, FAN_L, FAN_SPREAD = PRISM_X - PRISM_LX, .030, .022   # titik asal pelangi = tengah sisi kiri prisma
+ENTRY_X = PRISM_X + PRISM_LX                              # titik masuk berkas putih = tengah sisi kanan prisma
+rod("IncidentWhiteRay", (.307, BEAM_Y, MID_Z), (ENTRY_X, BEAM_Y, MID_Z), .0032, incident, 12)
+rod("IncidentGlowRay", (.307, BEAM_Y, MID_Z), (ENTRY_X, BEAM_Y, MID_Z), .0095, inc_glow, 12)
+prism_mesh("MonoPrism", [(MID_Z - PRISM_S / 2, BEAM_Y - PRISM_H / 2), (MID_Z + PRISM_S / 2, BEAM_Y - PRISM_H / 2),
+                         (MID_Z, BEAM_Y + PRISM_H / 2)],
+           PRISM_X - PRISM_LX, PRISM_X + PRISM_LX, prism_glass, axis="x")
+rotor = len(doc["nodes"])
+doc["nodes"].append({"name": "MonoRotor", "translation": [-APEX_X, BEAM_Y, MID_Z], "children": []})
+doc["nodes"][0]["children"].append(rotor)
+for i, (n, _c) in enumerate(BANDS):
+    z0 = -FAN_SPREAD / 2 + i * FAN_SPREAD / 7
+    prism_mesh("Band" + n, [(0, 0), (-FAN_L, z0), (-FAN_L, z0 + FAN_SPREAD / 7)], -.002, .002, band_mats[i], rotor)
+# Celah keluar (slit): dua pelat hitam tinggi seperti pada diagram acuan, tepat sesudah pelangi.
+# Hanya pita warna yang jatuh pada celah sempit di tengah yang lolos; pita lain terhalang pelat.
+SLIT_T, SLIT_H, SLIT_LEN, GAP = .004, .050, .045, .00275
+SLIT_X = APEX_X - FAN_L - .0005 - SLIT_T / 2
+for sgn, nm in ((1, "Top"), (-1, "Bottom")):
+    rounded_box("SlitPlate" + nm, (SLIT_X, .248, MID_Z + sgn * (GAP + SLIT_LEN / 2)), (SLIT_T, SLIT_H, SLIT_LEN), .0006, slit_black)
+    rounded_box("SlitRim" + nm, (SLIT_X, .248, MID_Z + sgn * (GAP + .0004)), (SLIT_T + .0012, SLIT_H + .0012, .0008), .0003, slit_rim)
+rod("SelectedBeam", (SLIT_X, BEAM_Y, MID_Z), (.232, BEAM_Y, MID_Z), .0026, sel_core, 10)
+rod("SelectedGlow", (SLIT_X, BEAM_Y, MID_Z), (.232, BEAM_Y, MID_Z), .0085, sel_glow, 12)
+# Pembagi berkas (pelat kaca 45 derajat) tepat di titik percabangan.
+quad("BeamSplitter", [(.226, .243, MID_Z - .006), (.238, .243, MID_Z + .006),
+                      (.238, .273, MID_Z + .006), (.226, .273, MID_Z - .006)], splitter_glass)
 
 # The dark cover rotates from its rear hinge.  The animation drives one node,
 # so repeated open/close actions cannot desynchronise separate pieces.
@@ -258,9 +361,10 @@ for i in range(16):
     rod(f"CableSegment{i:02}", bezier(i/16), bezier((i+1)/16), .0045, base, 8)
 
 # A single, manually scrubbed animation clip makes the lid reversible.
-times = accessor([(0.,), (1.,)], 1, 5126)
+times = accessor([(0.,), (1.,), (2.,)], 1, 5126)
 angle = 1.49
-quats = accessor([(0., 0., 0., 1.), (math.sin(angle/2), 0., 0., math.cos(angle/2))], 4, 5126)
+opened = (math.sin(angle/2), 0., 0., math.cos(angle/2))
+quats = accessor([(0., 0., 0., 1.), opened, opened], 4, 5126)
 doc["animations"].append({"name": "LidMotion",
                            "samplers": [{"input": times, "output": quats, "interpolation": "LINEAR"}],
                            "channels": [{"sampler": 0, "target": {"node": pivot, "path": "rotation"}}]})

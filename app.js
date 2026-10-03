@@ -311,7 +311,7 @@
       setMaterial(n,[...col,(.3+.65*k)*L]); setEmissive(n,col.map(v=>v*(.4+.9*k)));
     }
     for (const n of ['SplitterGlass','LensGlass']) setMaterial(n,[.74,.9,1,.34*L]);
-    setMaterial('MonoPrismGlass',[.60,.64,.68,.92*L]);   // prisma abu-abu pekat seperti diagram acuan
+    setMaterial('MonoPrismGlass',[.10,.12,.15,L]);   // prisma abu-abu pekat (opak) agar jelas terlihat
     setFanAngle(nm);
     // sesudah celah: satu berkas satu warna menuju pembagi berkas
     setMaterial('SelectedBeam',[...hot,.98*L]); setEmissive('SelectedBeam',c.map(v=>v*L));

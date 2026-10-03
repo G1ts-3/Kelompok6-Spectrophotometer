@@ -72,7 +72,7 @@ BANDS = [("Violet", (.56, .12, 1)), ("Indigo", (.30, .10, .95)), ("Blue", (.10, 
          ("Green", (.12, .90, .25)), ("Yellow", (1, .92, .10)), ("Orange", (1, .50, .05)), ("Red", (1, .10, .08))]
 band_mats = [glow("Band" + n, c) for n, c in BANDS]
 sel_core, sel_glow = glow("SelectedBeam", (.5, .4, 1)), glow("SelectedGlow", (.5, .4, 1))
-prism_glass = material("MonoPrismGlass", (.72, .88, 1, 0), .06, alpha=True)
+prism_glass = material("MonoPrismGlass", (.10, .12, .15, 0), .55, alpha=True)   # abu-abu pekat, kasar agar pantulan tidak memucatkan
 splitter_glass = material("SplitterGlass", (.70, .86, 1, 0), .08, alpha=True)
 lens_glass = material("LensGlass", (.74, .90, 1, 0), .05, alpha=True)
 slit_black = material("SlitBlack", (.02, .023, .027, 1), .42, .35)   # pelat celah: hitam pekat agar jelas terlihat

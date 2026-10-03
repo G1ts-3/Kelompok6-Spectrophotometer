@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#e9f3f7">
+  <meta name="description" content="Jelajahi instrumen UV–Vis, pilih larutan, dan lihat spektrum serta absorbansi dalam simulasi interaktif.">
+  <title>UV–Vis Lab · Eksplorasi Spektrofotometer</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="favicon-32.png" sizes="32x32">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.1.0/dist/model-viewer.min.js"></script>
+  <script defer src="sim-core.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#atas" aria-label="UV–Vis Lab, kembali ke atas">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M10 29h20M14 25l9-14 4 3-9 14M12 30c0-5 4-8 9-8M18 10l4-5 7 5-4 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span><strong>UV–Vis Lab</strong><small>Ruang eksplorasi</small></span>
+    </a>
+    <span class="header-tag"><span class="live-dot"></span> Model interaktif</span>
+  </header>
+
+  <main id="atas" class="page-shell">
+    <div class="page-heading">
+      <div><p class="eyebrow">SPEKTROFOTOMETER · UV–VIS</p><h1>Lihat, coba, pahami.</h1></div>
+      <p>Putar alat, pilih larutan, lalu amati apa yang terbaca di komputer.</p>
+    </div>
+
+    <div class="workbench">
+      <section class="tray-section cuvette-panel" aria-label="Isi kuvet">
+      <div class="tray-title"><h2>Isi kuvet</h2><p><b>Kuvet belakang selalu berisi blanko atau standar.</b></p></div>
+      <div class="tray-group"><span class="group-label">BLANKO</span><div id="blank-solutions" class="solution-row"></div></div>
+      <div class="tray-group"><span class="group-label">STANDAR</span><div id="standard-solutions" class="solution-row"></div></div>
+      <div class="tray-group"><span class="group-label">DERET SAMPEL</span><div id="sample-solutions" class="solution-row"></div></div>
+      <div id="weight-panel" class="weight-panel" hidden><strong>Bobot sampel</strong><p>Masukkan bobot yang digunakan untuk preparasi sampel.</p><label>Pilih bobot (gram) <select id="weight-select"><option value="0.010">0,0100 gram (preparasi tablet)</option><option value="0.050">0,0500 gram</option><option value="0.100">0,1000 gram</option><option value="manual">Input manual</option></select></label><label id="manual-weight-wrap" hidden>Bobot manual (gram) <input id="sample-weight" type="number" min="0" step="0.0001" value="0.0100"></label><small id="weight-info"></small></div>
+      <details class="more-solutions"><summary>Lihat larutan lainnya <span id="other-count"></span><span class="chevron">⌄</span></summary><div id="other-solutions" class="solution-row"></div></details>
+    </section>
+      <section class="instrument-section" aria-label="Model instrumen interaktif">
+        <div class="stage" id="stage">
+          <div class="stage-top"><span class="stage-label">INSTRUMEN <b>01</b> / CARY 100</span><span class="stage-hint">Seret untuk memutar · scroll untuk zoom</span></div>
+          <model-viewer id="instrument" src="spectrophotometer.glb" alt="Model tiga dimensi instrumen spektrofotometer UV–Vis dengan dua kuvet berbaris depan-belakang dan tutup ruang sampel" camera-controls touch-action="pan-y" interaction-prompt="none" camera-orbit="180deg 65deg 1.7m" camera-target="0m 0.17m 0m" min-camera-orbit="auto 20deg auto" max-camera-orbit="auto 90deg auto" min-field-of-view="18deg" max-field-of-view="58deg" field-of-view="30deg" shadow-intensity="1" shadow-softness=".8" exposure="1.2" tone-mapping="neutral">
+            <button class="hotspot" slot="hotspot-1" data-position="0.3m 0.407m 0.16m" data-normal="0m 1m 0m" data-part="0" aria-label="Sumber cahaya">1</button>
+            <button class="hotspot" slot="hotspot-2" data-position="-0.012m 0.285m -0.027m" data-normal="0m 1m 0m" data-part="1" aria-label="Monokromator">2</button>
+            <button class="hotspot" slot="hotspot-3" data-position="-0.166m 0.325m 0.053m" data-normal="0m 1m 0m" data-part="2" aria-label="Kuvet blanko (belakang)">3</button>
+            <button class="hotspot" slot="hotspot-4" data-position="-0.166m 0.305m -0.107m" data-normal="0m 1m 0m" data-part="3" aria-label="Kuvet sampel (depan)">4</button>
+            <button class="hotspot" slot="hotspot-5" data-position="-0.316m 0.285m -0.027m" data-normal="0m 1m 0m" data-part="4" aria-label="Detektor">5</button>
+            <button class="hotspot" slot="hotspot-6" data-position="-0.166m 0.21m -0.212m" data-normal="0m 0m -1m" data-part="5" aria-label="Penutup sampel">6</button>
+            <button class="hotspot" slot="hotspot-7" data-position="0.496m 0.078m -0.45m" data-normal="0m 0m -1m" data-part="6" aria-label="Tombol daya">7</button>
+                      <span class="fill-anchor" slot="hotspot-8" data-position="-0.166m 0.30m -0.107m" data-normal="0m 1m 0m" aria-hidden="true"></span>
+          </model-viewer>
+          <div class="scan-hud" id="scan-hud" hidden role="status"><span class="hud-dot"></span><b id="hud-title">Scanning</b><span id="hud-nm">200 nm</span><i><em id="hud-bar"></em></i></div>
+          <div class="part-card" id="part-card" hidden><button id="close-part" aria-label="Tutup penjelasan">×</button><span id="part-number"></span><strong id="part-title"></strong><p id="part-copy"></p></div>
+          <div class="stage-bottom">
+            <div class="stage-actions">
+              <button class="soft-button" id="lid-button" aria-pressed="false"><span aria-hidden="true">◫</span> Buka tutup</button>
+              <button class="soft-button" id="instrument-power" aria-pressed="false"><span class="tiny-led"></span> Nyalakan alat</button>
+              <button class="icon-button" id="reset-view" aria-label="Atur ulang sudut pandang" title="Atur ulang sudut pandang">↺</button>
+            </div>
+            <button class="parts-button" id="parts-toggle" aria-pressed="false">Kenali bagian <span>ⓘ</span></button>
+          </div>
+        </div>
+        <div class="flow-strip" aria-label="Jalur cahaya dalam instrumen">
+          <span class="flow-caption">DI DALAM ALAT</span>
+          <span>Sumber cahaya</span><i aria-hidden="true"></i><span>Monokromator</span><i aria-hidden="true"></i><span>Dua kuvet</span><i aria-hidden="true"></i><span>Detektor</span>
+        </div>
+      </section>
+
+      <section class="connection-section" aria-label="Koneksi alat dan komputer">
+        <div class="pc-unit ucp"><span class="pc-led"></span><b>UCP</b><small>Pengendali alat spektrofotometer</small></div>
+        <div class="pc-unit cpu"><span class="pc-led"></span><b>CPU</b><small>Komputer yang menjalankan software</small></div>
+      </section>
+
+      <section class="computer-section" aria-label="Komputer dan perangkat lunak simulasi">
+        <div class="monitor">
+          <div class="monitor-bezel">
+            <div class="monitor-screen" id="screen">
+              <div class="software-launch" id="software-launch"><button id="open-software">▶ Buka Cary WinUV</button><small>Komputer aktif · software belum dijalankan</small></div>
+                            <div class="software" id="software">
+                <div class="software-top"><div class="software-name"><span class="app-symbol">◫</span><span>UV–Vis Studio<small>SIMULASI · CARY 100</small></span></div><span class="connection" id="connection"><span></span>Alat mati</span></div>
+                <div class="software-tabs" role="tablist" aria-label="Halaman perangkat lunak">
+                  <button role="tab" id="tab-scan" aria-controls="panel-scan" aria-selected="true" data-tab="scan">Spektrum</button>
+                  <button role="tab" id="tab-cal" aria-controls="panel-cal" aria-selected="false" data-tab="cal">Kurva kalibrasi</button>
+                  <button role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false" data-tab="history">Riwayat <span id="history-count">0</span></button>
+                </div>
+                <div class="software-scroll">
+                  <section id="panel-scan" role="tabpanel" aria-labelledby="tab-scan" class="software-panel">
+                    <div class="screen-summary"><div><span class="micro-label">LARUTAN DI KUVET DEPAN</span><strong id="active-solution">Aquades</strong></div><div class="readout"><span class="micro-label">PADA <span id="readout-nm">246</span> nm</span><strong id="readout-value">—</strong><small id="readout-unit">Abs</small></div></div>
+                    <div class="chart-card">
+                      <div class="chart-heading"><span id="chart-title">Spektrum serapan</span><span class="chart-legend"><i></i> Absorbansi</span></div>
+                      <svg id="spectrum-chart" viewBox="0 0 420 208" preserveAspectRatio="none" role="img" aria-label="Grafik spektrum absorbansi"><g id="chart-grid"></g><path id="chart-area"></path><path id="chart-line"></path><g id="chart-cursor"></g><g id="chart-labels"></g><rect id="chart-hit" x="38" y="10" width="370" height="166" fill="transparent"></rect></svg>
+                      <div class="chart-foot"><span id="range-start">200 nm</span><span>Geser penunjuk pada kurva</span><span id="range-end">400 nm</span></div>
+                    </div>
+                    <div class="software-controls">
+                      <label>Rentang <select id="range-select"><option value="uv">UV · 200–400 nm</option><option value="vis">Vis · 400–800 nm</option><option value="all">Penuh · 200–800 nm</option></select></label>
+                      <div class="mode-control" role="group" aria-label="Mode pembacaan"><button id="mode-abs" class="active" aria-pressed="true">Abs</button><button id="mode-t" aria-pressed="false">%T</button></div>
+                    </div>
+                    <div class="run-controls"><button class="secondary-button" id="zero-button">Zero · blanko–blanko</button><button class="primary-button" id="scan-button">Mulai scan <span aria-hidden="true">↗</span></button></div>
+                    <p class="inline-message" id="screen-status" role="status">Nyalakan alat di sisi kiri model, lalu tekan Zero (blanko–blanko).</p>
+                  </section>
+                  <section id="panel-cal" role="tabpanel" class="software-panel" hidden>
+                    <div class="tab-intro"><strong>Kurva Kalibrasi Deret Standar Thiamin</strong><p>Scan standar 0 sampai 25 ppm secara berurutan pada 246 nm. Titiknya masuk otomatis ke kurva kalibrasi.</p></div>
+                    <div class="cal-chart"><svg id="calibration-chart" viewBox="0 0 420 200" role="img" aria-label="Kurva kalibrasi standar"></svg></div>
+                    <div id="cal-points" class="cal-points"></div>
+                    <p class="cal-result" id="cal-result">Butuh sedikitnya dua standar untuk membuat garis kalibrasi.</p>
+                    <p class="cal-note">Konsentrasi sampel ditaksir dari garis ini setelah sampel di-scan.</p>
+                  </section>
+                  <section id="panel-history" role="tabpanel" class="software-panel" hidden>
+                    <div class="history-heading"><div><strong>Riwayat pengukuran</strong><p>Tersimpan di browser ini.</p></div><button id="clear-history" class="text-button">Hapus</button></div>
+                    <div id="history-list" class="history-list"></div>
+                  </section>
+                  <div class="formula-bar" id="formula-bar" hidden aria-live="polite"></div>
+                </div>
+              </div>
+              <div class="monitor-off" id="monitor-off" hidden><span>○</span><p>Monitor mati</p><small>Tekan tombol daya di bawah layar</small></div>
+            </div>
+            <div class="monitor-chin"><button id="monitor-power" class="monitor-power" aria-label="Matikan monitor" aria-pressed="true" title="Daya monitor"><span class="power-glyph">⏻</span></button><span class="monitor-mark">UV–VIS WORKSTATION</span><span class="monitor-led" id="monitor-led"></span></div>
+          </div>
+          <div class="monitor-neck"></div><div class="monitor-foot"></div>
+        </div>
+        <div class="under-monitor"><span class="cable-mark"><i></i> Terhubung lewat port belakang instrumen</span><details class="help"><summary>Panduan singkat</summary><p>Nyalakan alat, tekan <b>Zero</b> (aquades di kuvet belakang dan depan), lalu <b>Mulai scan</b>. Standar 0 sampai 25 ppm atau Presisi 1 sampai 5 berjalan berurutan: setelah satu selesai, larutan berikutnya otomatis masuk kuvet depan. Ganti kelompok larutan berarti Zero lagi. Klik titik pada kurva untuk membaca panjang gelombang. Buka Kurva kalibrasi atau Riwayat kapan saja.</p></details></div>
+      </section>
+    </div>
+
+    
+    <footer><span>Simulasi untuk pembelajaran. Kurva dan angka adalah ilustrasi, bukan hasil pengujian laboratorium.</span><span>UV–Vis Lab · 2026</span></footer>
+  </main>
+</body>
+</html>

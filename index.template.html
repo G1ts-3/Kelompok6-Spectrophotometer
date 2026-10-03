@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#e9f7ff">
+  <meta name="description" content="Laboratorium UV-Vis interaktif: jelajahi dua kuvet pada model 3D, pilih larutan, kalibrasi blanko, dan baca spektrum pada komputer.">
+  <title>UV–Vis Lab | Spektrum dari sampelmu</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,__PNG_FAVICON__">
+  <link rel="shortcut icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=20260927-crt-blue">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.3.1/dist/model-viewer.min.js"></script>
+  <script defer src="./app.js?v=20260927-r14"></script>
+</head>
+<body data-release="2026-09-27-r14">
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none"><path d="M19 10 25 5l7 7-6 6-7-8Z" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="m22.5 15.5-5 5M29 17.5c7 5.5 7 15.5-1 20M16 21l-3.5 3.5 5 5 3.5-3.5-5-5ZM13 34h20M11 40h26M24 34v6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brand-copy"><strong>UV–Vis Lab</strong><small>SPEKTROFOTOMETER INTERAKTIF</small></span>
+      </div>
+      <div class="header-right">
+        <span class="header-link"><i id="link-dot" aria-hidden="true"></i> INSTRUMEN ↔ KOMPUTER</span>
+        <div class="theme-picker" role="group" aria-label="Warna bodi alat">
+          <span>WARNA ALAT</span>
+          <button type="button" data-theme="pearl" aria-pressed="true" aria-label="Warna alat putih laboratorium" title="Putih laboratorium"></button>
+          <button type="button" data-theme="ivory" aria-pressed="false" aria-label="Warna alat krem instrumen" title="Krem instrumen"></button>
+          <button type="button" data-theme="graphite" aria-pressed="false" aria-label="Warna alat abu grafit" title="Abu grafit"></button>
+        </div>
+        <span class="release-stamp">LAB / 14</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <div><span class="eyebrow">BELAJAR DENGAN MENCOBA · UV / VIS</span><h1 id="page-title">Dari dua kuvet, menjadi <em>sebuah spektrum.</em></h1></div>
+        <p>Ikuti praktikum Vitamin B1: blanko aquades, lima standar, lalu sampel. Komputer menampilkan spektrum, kurva kalibrasi, dan riwayat hasil.</p>
+      </section>
+
+      <div class="workflow" aria-label="Ringkasan langkah penggunaan"><span><b>01</b> Simulasi 3D</span><span><b>02</b> Power monitor</span><span><b>03</b> Blanko aquades</span><span><b>04</b> Lima standar</span><span><b>05</b> Vitamin B1</span></div>
+
+      <div class="workbench">
+        <section class="instrument-column" aria-labelledby="model-title">
+          <div class="section-head"><div><span class="eyebrow">01 / INSTRUMEN</span><h2 id="model-title">Alat &amp; kuvet</h2></div><p id="model-interaction-hint">Seret untuk memutar · scroll untuk zoom</p></div>
+          <div class="viewer-frame" id="viewer-frame">
+            <div class="viewer-grid" aria-hidden="true"></div>
+            <div class="viewer-topline"><span>UV–VIS SPECTROPHOTOMETER</span><span>MODEL 3D INTERAKTIF</span></div>
+            <div class="viewer-toolbar">
+              <div class="viewer-mode-switch" role="group" aria-label="Mode tampilan alat">
+                <button id="view-components" type="button" aria-pressed="true">Bagian alat</button>
+                <button id="view-simulator" type="button" aria-pressed="false">Simulasi 3D ↗</button>
+              </div>
+              <div class="viewer-tools"><button class="guide-toggle" id="guide-toggle" type="button" title="Lihat petunjuk simulasi" aria-label="Lihat petunjuk simulasi" hidden>?</button><button class="reset-button" id="reset-view" type="button" title="Atur ulang sudut pandang" aria-label="Atur ulang sudut pandang">↺</button></div>
+            </div>
+            <model-viewer id="instrument-model" src="./spectrophotometer.glb?v=20260927-r14"
+              alt="Spektrofotometer UV-Vis dengan dua kuvet dan colokan di belakang yang tersambung saat simulasi"
+              camera-controls disable-tap camera-orbit="180deg 60deg auto"
+              camera-target="-0.18m 0.18m -0.055m" field-of-view="30deg"
+              interpolation-decay="190" shadow-intensity="0.55" exposure="1.35"
+              environment-image="neutral" interaction-prompt="none">
+              <button class="hotspot" slot="hotspot-1" data-position="-0.014m 0.127m -0.099m" data-normal="-1m 0m 0m" type="button" aria-label="1. Sumber cahaya">1</button>
+              <button class="hotspot" slot="hotspot-2" data-position="-0.049m 0.141m -0.102m" data-normal="0m 1m 0m" type="button" aria-label="2. Monokromator">2</button>
+              <button class="hotspot" slot="hotspot-3" data-position="-0.165m 0.136m -0.102m" data-normal="1m 0m 0m" type="button" aria-label="3. Detektor">3</button>
+              <button class="hotspot" slot="hotspot-4" data-position="-0.099m 0.156m -0.063m" data-normal="0m 1m 0m" type="button" aria-label="4. Kuvet blanko merah">4</button>
+              <button class="hotspot" slot="hotspot-5" data-position="-0.099m 0.156m -0.106m" data-normal="0m 1m 0m" type="button" aria-label="5. Kuvet sampel abu">5</button>
+              <button class="hotspot" slot="hotspot-6" data-position="-0.089m 0.328m 0.037m" data-normal="0m 0m 1m" type="button" aria-label="6. Penutup ruang sampel">6</button>
+              <button class="hotspot" slot="hotspot-7" data-position="-0.088m 0.181m -0.184m" data-normal="0m 1m 0m" type="button" aria-label="7. Ruang sampel">7</button>
+              <button class="hotspot" slot="hotspot-8" data-position="-0.332m 0.037m 0.113m" data-normal="0m 0m 1m" type="button" aria-label="8. Colokan belakang dan kabel data">8</button>
+            </model-viewer>
+            <div class="viewer-loading" id="viewer-loading" role="status"><span class="loading-spinner" aria-hidden="true"></span><span id="loading-message">Menyiapkan model 3D…</span></div>
+            <p class="asset-warning" id="asset-warning" role="status" hidden></p>
+            <div class="part-popover" id="part-card" hidden aria-live="polite"><small id="part-count">BAGIAN 01 / 08</small><strong id="part-title">Sumber cahaya</strong><p id="part-description"></p></div>
+            <aside class="sim-guide" id="sim-guide" hidden aria-live="polite"><div class="sim-guide-head"><span id="sim-guide-count">PANDUAN PRAKTIKUM · 01 / 05</span><button id="guide-close" type="button" aria-label="Tutup panduan">×</button></div><strong id="sim-guide-title">Nyalakan monitor</strong><p id="sim-guide-text"></p><button type="button" id="sim-guide-action">Lihat tombol power ↗</button><div class="sim-guide-progress" id="sim-guide-progress" aria-hidden="true"></div></aside>
+            <div class="optical-flow" id="optical-flow" hidden aria-label="Jalur cahaya di dalam spektrofotometer"><span class="flow-label">DI DALAM ALAT</span><ol><li data-flow="0"><b>01</b> Sumber cahaya</li><li data-flow="1"><b>02</b> Monokromator</li><li data-flow="2"><b>03</b> Kuvet</li><li data-flow="3"><b>04</b> Detektor</li></ol><small id="flow-explanation">Saat mengukur, ikuti cahaya dari lampu hingga diterjemahkan menjadi sinyal oleh detektor.</small></div>
+            <div class="viewer-bottom">
+              <button class="lid-button" id="lid-toggle" type="button" disabled><span aria-hidden="true">↧</span><span id="lid-label">Tutup ruang sampel</span></button>
+              <div class="viewer-navigation" id="viewer-navigation"><span id="navigation-count">— / 08</span><button id="previous-part" type="button" aria-label="Bagian sebelumnya">‹</button><button id="next-part" type="button" aria-label="Bagian berikutnya">›</button></div>
+              <span class="model-caption" id="model-caption">Kabel tersambung di belakang · model terkunci selama simulasi.</span>
+            </div>
+          </div>
+
+          <section class="experiment-panel" id="experiment-panel" aria-labelledby="experiment-title"><span class="eyebrow">PRAKTIKUM TERPANDU / VITAMIN B1</span><h3 id="experiment-title">Rak kuvet &amp; larutan</h3><p>Dua dudukan berada dalam alat: <b>merah untuk aquades</b> sebagai blanko dan <b>abu untuk standar atau sampel</b>. Pilih isi kuvet abu dari rak berikut.</p><div class="blank-specimen"><span class="rack-cuvette rack-cuvette-red" aria-hidden="true"><i></i><b></b><em></em></span><span><strong>Blanko · Aquades</strong><small>Kuvet acuan merah · tetap di dalam alat</small></span></div><div class="standards-label">STANDAR VITAMIN B1 · mg/L (ppm) <span id="standards-count">0 / 5 terukur</span></div><div class="standards-grid" id="standards-grid" role="group" aria-label="Larutan standar Vitamin B1"></div><button class="vitamin-sample" id="vitamin-sample" type="button"><span class="rack-cuvette rack-cuvette-gray" aria-hidden="true"><i></i><b></b><em></em></span><span><strong>Sampel · Vitamin B1</strong><small>Konsentrasi tidak diketahui · ukur setelah lima standar</small></span><span aria-hidden="true">↗</span></button></section>
+
+          <details class="solution-panel" id="solution-panel"><summary><span><span class="eyebrow">EKSPLORASI BEBAS / 28 LARUTAN</span><strong>Jelajahi larutan lain</strong></span><span class="summary-chevron" aria-hidden="true">⌄</span></summary>
+            <div class="solution-heading"><div><span class="eyebrow">RAK SAMPEL / <span id="solution-total">28</span> LARUTAN</span><h3>Pilih larutan untuk kuvet abu</h3></div><span class="selection-count" id="selection-count">BELUM DIPILIH</span></div>
+            <p class="helper-copy">Setiap kartu adalah kuvet kaca dalam dudukan kecil, seperti contoh pada foto. Klik larutan untuk memasukkannya ke dudukan abu; blanko aquades tetap pada dudukan merah.</p>
+            <div class="solution-tools"><label for="solution-search">Cari larutan</label><input id="solution-search" type="search" placeholder="Misalnya: metilen biru" autocomplete="off"><span id="solution-match-count">28 pilihan</span></div>
+            <div class="solution-grid" id="solution-grid" role="group" aria-label="Pilihan larutan sampel"></div>
+          </details>
+        </section>
+
+        <div class="cable-bridge" aria-hidden="true"><svg viewBox="0 0 220 120" preserveAspectRatio="none"><path d="M1 48 C48 48 25 109 105 108 S168 63 219 62"/></svg><span>PORT BELAKANG → PC</span></div>
+
+        <section class="computer-column" aria-labelledby="computer-title">
+          <div class="section-head"><div><span class="eyebrow">02 / KOMPUTER</span><h2 id="computer-title">Spektrum &amp; kontrol</h2></div><p>Semua hasil keluar di sini</p></div>
+          <div class="computer-housing">
+            <div class="computer-port" aria-hidden="true"><span>DATA IN</span></div>
+            <div class="monitor-bezel">
+              <div class="monitor-screen is-off" id="monitor-screen">
+                <div class="monitor-off-prompt" aria-hidden="true"><span>UV–VIS LAB</span><strong>MONITOR OFF</strong><small>Tekan tombol ⏻ pada bingkai kiri bawah</small></div>
+                <div class="software-bar"><span><i aria-hidden="true"></i> UV–VIS / B1 LAB SOFTWARE</span><strong id="screen-state">OFFLINE</strong></div>
+                <div class="screen-content">
+                  <div class="reading-row">
+                    <div><small>PEMBACAAN <span id="reading-mode-label">ABS</span></small><strong id="reading-display">—</strong><span id="reading-unit">Abs</span></div>
+                    <div><small>PANJANG GELOMBANG</small><strong id="wavelength-display">—</strong><span>nm</span></div>
+                    <div class="transmittance-reading"><small>TRANSMITAN</small><strong id="transmittance-display">—</strong><span>%T</span></div>
+                  </div>
+                  <section class="control-card software-control-panel" id="control-card" aria-label="Kendali pengukuran di software komputer">
+                    <div class="control-header"><div><span class="eyebrow">PENGUKURAN / PC CONTROL</span><h3 id="guide-title">Masuk ke Simulasi 3D</h3></div><button id="demo-button" class="demo-button" type="button" disabled>▶ Demo otomatis</button></div>
+                    <p id="guide-description" class="guide-description">Sambungkan kabel dan ikuti petunjuk di atas alat.</p>
+                    <div class="progress-steps" aria-label="Progres pengukuran"><span id="step-solution">1 Hubungkan</span><span id="step-power">2 Power</span><span id="step-blank">3 Aquades</span><span id="step-scan">4 Standar &amp; sampel</span></div>
+                    <div class="software-inputs"><div class="control-row"><label for="range-preset">Rentang pindai</label><select id="range-preset" disabled><option value="200-800">Penuh · 200–800 nm</option><option value="200-400" selected>UV · 200–400 nm</option><option value="400-800">Tampak · 400–800 nm</option><option value="200-1100">Luas · 200–1100 nm</option></select></div>
+                    <div class="control-row wave-control"><label for="wavelength-slider">Baca di panjang gelombang <output id="wavelength-output">246 nm</output></label><input type="range" id="wavelength-slider" min="200" max="400" value="246" step="1" disabled><div class="range-label"><span id="range-start">200 nm</span><span id="range-end">400 nm</span></div></div></div>
+                    <div class="control-actions"><button id="blank-button" type="button" disabled><span>01</span> Blanko aquades</button><button id="measure-button" type="button" disabled><span>02</span> Pindai kuvet ↗</button></div>
+                    <p class="system-status" id="status-message" role="status" aria-live="polite">Memuat model instrumen…</p>
+                  </section>
+                  <nav class="software-tabs" aria-label="Tampilan perangkat lunak"><button type="button" data-screen="spectrum" aria-pressed="true">Spektrum</button><button type="button" data-screen="calibration" aria-pressed="false">Kalibrasi</button><button type="button" data-screen="history" aria-pressed="false">Riwayat <span id="history-count">0</span></button></nav>
+                  <div class="software-page" data-page="spectrum"><div class="plot-header"><span id="plot-title">Spektrum belum tersedia</span><div class="plot-actions"><button id="mode-abs" type="button" aria-pressed="true" disabled>Abs</button><button id="mode-trans" type="button" aria-pressed="false" disabled>%T</button></div></div>
+                  <div class="plot-frame"><svg id="spectrum-chart" viewBox="0 0 720 300" role="img" aria-label="Grafik spektrum absorbansi terhadap panjang gelombang"><title>Kurva UV-Vis</title></svg><span class="plot-empty" id="plot-empty">Kurva muncul setelah blanko dan pemindaian sampel.</span></div>
+                  <div class="report-row"><div><small>PEAK / PUNCAK SERAPAN</small><div id="peak-list" class="peak-list">—</div></div><button id="export-button" type="button" disabled>↓ CSV</button></div></div>
+                  <div class="software-page" data-page="calibration" hidden><div class="plot-header"><span>Kurva kalibrasi Vitamin B1 · 246 nm</span><span class="software-hint" id="calibration-count">0 / 5 standar</span></div><div class="plot-frame"><svg id="calibration-chart" viewBox="0 0 720 300" role="img" aria-label="Kurva kalibrasi absorbansi terhadap konsentrasi Vitamin B1"></svg><span class="plot-empty" id="calibration-empty">Pindai standar 0, 5, 10, 15, dan 25 mg/L.</span></div><div class="standard-table-wrap"><table class="standard-table"><caption>Data standar</caption><thead><tr><th>Standar</th><th>mg/L (ppm)</th><th>Abs 246 nm</th></tr></thead><tbody id="standard-table-body"></tbody></table></div><div class="calibration-report"><div><small>PERSAMAAN GARIS · A = mC + b</small><strong id="calibration-equation">Menunggu lima standar</strong><span id="calibration-r2">R² —</span></div><div><small>SAMPEL VITAMIN B1</small><strong id="unknown-result">— mg/L</strong><span id="unknown-abs">Abs —</span></div></div></div>
+                  <div class="software-page history-page" data-page="history" hidden><div class="plot-header"><span>Riwayat pengukuran tersimpan di browser</span><button type="button" id="clear-history">Hapus riwayat</button></div><div id="history-list" class="history-list"><p>Belum ada pemindaian.</p></div></div>
+                </div>
+              </div>
+              <div class="crt-chin">
+                <button id="power-button" class="power-button" type="button" disabled aria-label="Nyalakan instrumen dari tombol monitor" aria-pressed="false" title="Power komputer dan instrumen"><span class="power-symbol" aria-hidden="true">⏻</span><span class="power-led" aria-hidden="true"></span><span id="power-label">Nyalakan</span></button>
+                <span class="crt-brand"><strong>UV–VIS LAB</strong><small>INSTRUMENT WORKSTATION</small></span>
+                <span class="crt-buttons" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              </div>
+            </div>
+            <div class="monitor-neck" aria-hidden="true"></div><div class="monitor-foot" aria-hidden="true"></div>
+            <div class="monitor-status"><span>PC CONTROLLED SPECTROPHOTOMETER</span><span class="connection-chip" id="connection-chip">○ BELUM TERSAMBUNG</span></div>
+          </div>
+
+        </section>
+      </div>
+
+      <div class="method-note"><span>i</span><p>Nilai Vitamin B1 dan spektrum adalah data sintetis untuk belajar kalibrasi, bukan metode laboratorium tervalidasi. Gunakan kuvet yang sesuai UV; dalam analisis nyata, panjang gelombang, pelarut, matriks, dan rentang linear perlu divalidasi.</p></div>
+    </main>
+    <footer class="site-footer"><span>UV–VIS LAB · MEDIA PEMBELAJARAN INTERAKTIF</span><span>Model asal oleh <a href="https://sketchfab.com/3d-models/spectrophotometer-4f280b451be843138255c3c9874f444d" target="_blank" rel="noopener noreferrer">HoneyBadgersTail</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · disesuaikan untuk simulasi.</span></footer>
+  </div>
+</body>
+</html>

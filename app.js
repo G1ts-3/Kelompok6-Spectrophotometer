@@ -4,6 +4,10 @@
   const $ = id => document.getElementById(id);
   const viewer = $('instrument');
   const ranges = {uv:[200,400],vis:[400,800],all:[200,800]};
+  const massOverrides = loadMassOverrides();
+  const absOverrides = loadAbsOverrides();
+  const customSamples = loadCustomSamples();
+  core.solutions.push(...customSamples);
   const parts = [
     ['Sumber cahaya','Lampu menyediakan cahaya sebelum panjang gelombang dipilih; posisinya di sisi kanan jalur optik.','150deg 53deg .80m','-.324m .25m -.027m'],
     ['Monokromator','Pemisahan spektrum berlangsung di dalam komponen ini. Hanya satu panjang gelombang terpilih yang terbagi ke kedua kuvet, dari kanan ke kiri.','200deg 42deg .55m','-.259m .25m -.027m'],
@@ -14,11 +18,12 @@
     ['Tombol daya','Sakelar instrumen berada di sisi kiri depan. Komputer memiliki daya terpisah.','186deg 77deg .66m','.45m .07m -.40m'],
   ];
   const state = {
-    instrumentOn:false, monitorOn:false, softwareOpen:false, lidOpen:false, lidProgress:0,
+    upsOn:false, instrumentOn:false, pcuOn:false, softwareOpen:false, lidOpen:false, lidProgress:0,
     modelReady:false, measuring:false, blanked:false, selected:'aquades',
-    range:'uv', wavelength:246, mode:'abs', tab:'scan', currentScan:null,
-    zeroGroup:null, queueId:'std-0', filling:false, level:1, lastResult:null,
-    history:loadHistory(), part:-1,
+    range:'uv', wavelength:core.peakNm, mode:'abs', tab:'scan', currentScan:null,
+    zeroGroup:null, queueId:'std-0', filling:false, blankReady:true, requiresSelection:false, lastResult:null,
+    history:loadHistory(), part:-1, workflow:'lambda', zeroed:false,
+    confirmedPeaks:{},
   };
   let lidFrame=0, lidResolve=null, beamTimer=0;
   const busy = () => state.measuring || state.filling;
@@ -34,9 +39,20 @@
     viewer.currentTime=p;
   }
   const getSolution = id => core.solutions.find(s => s.id===id) || core.solutions[0];
+  const absDigits = (key=core.datasetKey) => key==='jena'?4:3;
+  const formatAbs = (value,key=core.datasetKey) => Number(value).toFixed(absDigits(key));
+  const recordAbs = record => record?.origin==='manual' && record.manualAbsText ? record.manualAbsText : formatAbs(record.readAbs ?? record.absPeak ?? record.abs246,record.dataset);
+  const escapeHtml = value => String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const formatPeak = nm => Number(nm).toFixed(1).replace('.',',');
+  const formatWeight = grams => {
+    const value=String(Number(grams));
+    if(value.includes('e'))return value.replace('.',',');
+    const [whole,decimal='']=value.split('.');
+    return `${whole},${decimal.padEnd(4,'0')}`;
+  };
   // Urutan kerja: standar 0-25 ppm dan Presisi 1-5 + Akurasi berjalan berurutan.
   const sequences = {standar:core.standards.map(s=>s.id), sampel:core.samples.map(s=>s.id)};
-  const groupLabels = {standar:'standar', sampel:'larutan sampel', lainnya:'larutan ini'};
+  const groupLabels = {standar:'standar', sampel:'larutan sampel'};
   const groupOf = id => getSolution(id).family;
   function nextInSequence(id) {
     const list=sequences[groupOf(id)], i=list?list.indexOf(id):-1;
@@ -52,6 +68,56 @@
   function saveHistory() {
     try { localStorage.setItem('uvvis-history-v3',JSON.stringify(state.history)); } catch { /* Private storage may be unavailable. */ }
   }
+  function loadMassOverrides() {
+    try { const data=JSON.parse(localStorage.getItem('uvvis-mass-v1')||'{}');return data && typeof data==='object' ? data : {}; }
+    catch { return {}; }
+  }
+  function loadAbsOverrides() {
+    try { const data=JSON.parse(localStorage.getItem('uvvis-abs-v1')||'{}');return data && typeof data==='object' ? data : {}; }
+    catch { return {}; }
+  }
+  function loadCustomSamples() {
+    try {
+      const data=JSON.parse(localStorage.getItem('uvvis-custom-samples-v1')||'[]');
+      if (!Array.isArray(data)) return [];
+      const seen=new Set();
+      return data.filter(s=>{
+        if (!s || typeof s.id!=='string' || !/^user-\d+-[a-z0-9]{4,10}$/.test(s.id) || seen.has(s.id) || !Object.hasOwn(core.datasets,s.dataset) || typeof s.name!=='string' || !s.name.trim()) return false;
+        seen.add(s.id);return true;
+      }).slice(0,100).map(s=>({id:s.id,name:s.name.trim().slice(0,40),dataset:s.dataset,archived:!!s.archived,custom:true,family:'sampel',color:'#dcedf4',alpha:.5,peaks:[],weight:0}));
+    } catch { return []; }
+  }
+  function saveCustomSamples() {
+    try { localStorage.setItem('uvvis-custom-samples-v1',JSON.stringify(customSamples.map(({id,name,dataset,archived})=>({id,name,dataset,archived})))); } catch { /* Current session remains usable. */ }
+  }
+  function saveAbsOverrides() {
+    try { localStorage.setItem('uvvis-abs-v1',JSON.stringify(absOverrides)); } catch { /* Current session remains usable. */ }
+  }
+  function applyMassOverrides() {
+    const saved=massOverrides[core.datasetKey] || {};
+    core.samples.forEach(s=>{if(Number.isFinite(saved[s.id]) && saved[s.id]>0)s.weight=saved[s.id];});
+    customSamples.filter(s=>s.dataset===core.datasetKey).forEach(s=>{s.weight=Number.isFinite(saved[s.id]) && saved[s.id]>0?saved[s.id]:0;});
+  }
+  function saveMassOverrides() {
+    try { localStorage.setItem('uvvis-mass-v1',JSON.stringify(massOverrides)); } catch { /* Use current session only. */ }
+  }
+  function parsePositiveDecimal(value) {
+    const raw=String(value).trim().replace(',','.');
+    if (!/^\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(raw)) return null;
+    const number=Number(raw);
+    return Number.isFinite(number)&&number>0 ? number : null;
+  }
+  function parseNonnegativeDecimal(value) {
+    const raw=String(value).trim().replace(',','.');
+    if (!/^\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(raw)) return null;
+    const number=Number(raw);
+    return Number.isFinite(number)&&number>=0 ? number : null;
+  }
+  function manualAbsText(solution) {
+    if (solution.family!=='sampel') return null;
+    const raw=$('manual-abs').value.trim().replace(',','.');
+    return raw && parseNonnegativeDecimal(raw)!==null ? raw : null;
+  }
   function status(message) { $('screen-status').textContent=message; }
   function setTab(name) {
     state.tab=name;
@@ -61,7 +127,7 @@
     }
     const bar=$('formula-bar'); bar.hidden = bar.dataset.has!=='1' || name==='history';
   }
-  // UCP menyala bersama alat, CPU bersama komputer (monitor): LED berkedip lalu menyala, garis ventilasi menyala bergantian.
+  // UPS memasok alat dan PCU; layar mengikuti daya PCU tanpa sakelar monitor terpisah.
   function syncUnit(el,on) {
     if (!el || el.classList.contains('on')===on) return;
     el.classList.toggle('on',on);
@@ -70,41 +136,94 @@
     if (!on) el._t=setTimeout(()=>el.classList.remove('powering-off'),900);
   }
   function updateControls() {
-    syncUnit($('ucp-unit'),state.instrumentOn);
-    syncUnit($('cpu-unit'),state.monitorOn);
-    document.querySelector('.computer-section').classList.toggle('on',state.monitorOn);
-    $('connection').classList.toggle('online',state.instrumentOn);
-    $('connection').lastChild.textContent=state.instrumentOn?'Alat tersambung':'Alat mati';
+    syncUnit($('ups-unit'),state.upsOn);
+    syncUnit($('pcu-unit'),state.pcuOn);
+    document.querySelector('.computer-section').classList.toggle('on',state.pcuOn);
+    const online=state.upsOn&&state.instrumentOn&&state.pcuOn;
+    $('connection').classList.toggle('online',online);
+    $('connection').lastChild.textContent=online?'ONLINE':'Alat mati';
+    $('ups-power').disabled=busy() || (state.upsOn && (state.instrumentOn||state.pcuOn));
+    $('ups-power').setAttribute('aria-pressed',String(state.upsOn));
+    $('ups-power').setAttribute('aria-label',state.upsOn?'Matikan UPS':'Nyalakan UPS');
+    $('ups-state').textContent=state.upsOn?'Menyala':'Mati';
     $('instrument-power').setAttribute('aria-pressed',String(state.instrumentOn));
     $('instrument-power').lastChild.textContent=state.instrumentOn?' Matikan alat':' Nyalakan alat';
+    $('instrument-power').disabled=busy() || (!state.instrumentOn&&!state.upsOn) || (state.instrumentOn&&state.pcuOn);
+    $('pcu-power').disabled=busy() || (!state.pcuOn&&(!state.upsOn||!state.instrumentOn)) || (state.pcuOn&&state.softwareOpen);
+    $('pcu-power').setAttribute('aria-pressed',String(state.pcuOn));
+    $('pcu-power').setAttribute('aria-label',state.pcuOn?'Shutdown PCU':'Nyalakan PCU');
+    $('pcu-state').textContent=state.pcuOn?'Menyala':'Mati';
+    $('close-software').disabled=busy();
+    $('power-status').textContent=!state.upsOn?'Nyalakan UPS terlebih dahulu.':!state.instrumentOn?'UPS aktif · nyalakan alat.':!state.pcuOn?'Alat aktif · nyalakan PCU.':state.softwareOpen?'Selesai praktik: catat log book, tutup software → PCU → alat → UPS.':'PCU aktif · buka software. Untuk shutdown: PCU → alat → UPS.';
     $('lid-button').setAttribute('aria-pressed',String(state.lidOpen));
     $('lid-button').lastChild.textContent=state.lidOpen?' Tutup tutup':' Buka tutup';
     $('lid-button').disabled=busy();
     $('parts-toggle').disabled=busy();
     document.querySelectorAll('.hotspot').forEach(b=>b.disabled=busy());
-    $('zero-button').disabled=!state.instrumentOn || busy();
-    $('scan-button').disabled=!state.instrumentOn || !state.blanked || busy();
-    $('scan-button').firstChild.textContent=state.measuring?'Memindai… ':'Mulai scan ';
-    $('software').hidden=!state.monitorOn || !state.softwareOpen; $('software-launch').hidden=!state.monitorOn || state.softwareOpen;
-    $('monitor-off').hidden=state.monitorOn;
-    $('monitor-led').classList.toggle('off',!state.monitorOn);
-    $('monitor-power').setAttribute('aria-pressed',String(state.monitorOn));
-    $('monitor-power').setAttribute('aria-label',state.monitorOn?'Matikan monitor':'Nyalakan monitor');
-    $('range-select').value=state.range;
+    const finding=state.workflow==='lambda';
+    const ready=state.upsOn&&state.instrumentOn&&state.pcuOn&&state.softwareOpen;
+    const applied=Number.isFinite(state.confirmedPeaks[core.datasetKey]);
+    $('workflow-lambda').setAttribute('aria-pressed',String(finding));
+    $('workflow-concentration').setAttribute('aria-pressed',String(!finding));
+    $('workflow-concentration').disabled=busy() || !applied;
+    $('workflow-lambda').disabled=busy();
+    $('workflow-setup').textContent=finding?
+      'Ketik 246,5 nm (Standar/Sampel 1) atau 248,0 nm (Standar/Sampel 2). Software memilih seri yang sesuai; tidak perlu memilih larutan lebih dulu.':
+      `λ ${formatPeak(state.confirmedPeaks[core.datasetKey])} nm · blanko aquades · deret standar 0–25 mg/L · sampel Presisi 1–5 dan Akurasi.`;
+    $('lambda-entry').hidden=!finding;
+    $('lambda-input').placeholder=formatPeak(core.peakNm);
+    $('lambda-input').disabled=!ready || busy();
+    $('apply-lambda').disabled=!ready || busy();
+    $('lambda-hint').textContent='246,5 nm → Standar/Sampel 1 · 248,0 nm → Standar/Sampel 2. Seri berganti otomatis; kedua angka berasal dari data praktikum.';
+    $('run-controls').hidden=finding;
+    let next;
+    if (!ready) next='Nyalakan UPS → alat → PCU, lalu buka software.';
+    else if (busy()) next=state.filling?'Menukar kuvet; tunggu sampai selesai…':'Alat sedang bekerja; tunggu hasilnya…';
+    else if (finding) next='Ketik 246,5 atau 248,0 nm, lalu Terapkan λ. Seri akan berganti otomatis.';
+    else if (state.requiresSelection) next='Pilih larutan baru dari baki di kiri.';
+    else if (!state.blanked) next='Tekan Zero blanko untuk mulai pengukuran konsentrasi.';
+    else if (getSolution(state.selected).family==='sampel' && parsePositiveDecimal($('sample-weight').value)===null) next='Isi bobot sampel positif pada komputer sebelum START ukur.';
+    else if (getSolution(state.selected).custom && !manualAbsText(getSolution(state.selected))) next='Isi Abs manual sampel tambahan pada komputer sebelum START ukur.';
+    else if (getSolution(state.selected).family==='sampel' && $('manual-abs').value.trim() && !manualAbsText(getSolution(state.selected))) next='Perbaiki angka Abs manual; gunakan angka nonnegatif.';
+    else next='Tekan START ukur. Grafik, Abs, dan progres alat akan muncul.';
+    $('next-instruction').textContent=next;
+    $('zero-button').disabled=!ready || !applied || state.requiresSelection || busy();
+    const selected=getSolution(state.selected), sample=selected.family==='sampel';
+    const invalidAbs=sample && ((selected.custom && !manualAbsText(selected)) || (!!$('manual-abs').value.trim() && !manualAbsText(selected)));
+    $('manual-abs').setAttribute('aria-invalid',String(!!invalidAbs));
+    $('scan-button').disabled=!ready || !applied || state.requiresSelection || !state.blanked || busy() || (sample && parsePositiveDecimal($('sample-weight').value)===null) || invalidAbs;
+    $('scan-button').firstChild.textContent=state.measuring?'Memindai… ':'02 · START ukur ';
+    $('software').hidden=!state.pcuOn || !state.softwareOpen; $('software-launch').hidden=!state.pcuOn || state.softwareOpen;
+    $('monitor-off').hidden=state.pcuOn;
+    $('monitor-led').classList.toggle('off',!state.pcuOn);
+    $('dataset-name').textContent=`${core.datasets[core.datasetKey].label} · λ praktikum ${formatPeak(core.peakNm)} nm`;
     $('mode-abs').classList.toggle('active',state.mode==='abs');
     $('mode-t').classList.toggle('active',state.mode==='t');
     $('mode-abs').setAttribute('aria-pressed',String(state.mode==='abs'));
     $('mode-t').setAttribute('aria-pressed',String(state.mode==='t'));
-    $('active-solution').textContent=getSolution(state.selected).name;
-    $('readout-nm').textContent=String(state.wavelength);
+    const displayed=state.currentScan ? getSolution(state.currentScan.solutionId) : getSolution(state.selected);
+    $('active-solution').textContent=state.currentScan?.name || displayed.name;
+    const weight=state.currentScan?.weight ?? displayed.weight;
+    const sampleMeta=$('sample-weight-readout');
+    sampleMeta.hidden=displayed.family!=='sampel' || !Number.isFinite(weight) || weight<=0;
+    if (!sampleMeta.hidden) sampleMeta.textContent=`Bobot ${formatWeight(weight)} g`;
+    const origin=$('result-origin');
+    origin.hidden=!state.currentScan || !!state.currentScan.baseline;
+    if (!origin.hidden) origin.textContent=state.currentScan.origin==='manual'?'Abs input manual · kurva ilustratif':'Abs data praktikum · kurva ilustratif';
+    $('readout-caption').textContent=!finding&&state.wavelength===state.confirmedPeaks[core.datasetKey]?'PADA λ TERPASANG':'PADA λ';
+    $('readout-nm').textContent=state.wavelength===core.peakNm?formatPeak(state.wavelength):String(state.wavelength).replace('.',',');
     $('readout-unit').textContent=state.mode==='abs'?'Abs':'%T';
     let value='—';
     if (state.currentScan) {
       const abs=interpolatedValue(state.currentScan.points,state.wavelength);
-      value=state.mode==='abs'?abs.toFixed(3):`${core.transmittance(abs).toFixed(1)}%`;
+      value=state.mode==='abs'?(state.wavelength===state.currentScan.readNm?recordAbs(state.currentScan):formatAbs(abs,state.currentScan.dataset)):`${core.transmittance(abs).toFixed(1)}%`;
     }
     $('readout-value').textContent=value;
-    document.querySelectorAll('.solution').forEach(b => {b.setAttribute('aria-pressed',String(b.dataset.solution===state.selected));b.disabled=busy();});
+    document.querySelectorAll('.solution').forEach(b => {
+      const active=b.dataset.solution==='aquades'?state.blankReady:b.dataset.solution===state.selected && b.dataset.dataset===core.datasetKey;
+      b.setAttribute('aria-pressed',String(active));b.disabled=busy() || state.zeroed || !state.modelReady;
+    });
+    document.querySelectorAll('.series-block').forEach(block=>block.classList.toggle('active',block.dataset.series===core.datasetKey));
     $('history-count').textContent=String(state.history.length);
   }
   function rgb(hex) { return [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255); }
@@ -123,50 +242,11 @@
   function updateModelMaterials() {
     if (!state.modelReady) return;
     const sol=getSolution(state.selected);
-    setMaterial('SampleLiquid',[...rgb(sol.color),(sol.alpha ?? .72)*(findLiquid()?1:Math.max(0,state.level))]);
+    setMaterial('SampleLiquid',[...rgb(sol.color),sol.alpha ?? .72]);
     setMaterial('PowerLED',state.instrumentOn?[.29,.96,.57,1]:[.22,.35,.33,1]);
     setEmissive('PowerLED',state.instrumentOn?[.14,.78,.38]:[0,0,0]);
     setMaterial('SourceGlow',state.instrumentOn?[.91,.97,1,1]:[.18,.28,.33,1]);
     setEmissive('SourceGlow',state.instrumentOn?[.65,.76,.88]:[0,0,0]);
-  }
-  // ---- Tinggi cairan di kuvet depan: skala sumbu-Y node 'SampleLiquid' (alas tetap), cadangan: transparansi.
-  let liq;
-  function findLiquid() {
-    if (liq!==undefined) return liq;
-    liq=null;
-    try {
-      const sym=Object.getOwnPropertySymbols(viewer).find(x=>x.description==='scene');
-      const scene=sym && viewer[sym];
-      scene?.traverse(o=>{
-        if (!liq && o.isMesh && o.material?.name==='SampleLiquid') {
-          o.geometry.computeBoundingBox();
-          liq={o,minY:o.geometry.boundingBox.min.y,p0:o.position.y,s0:o.scale.y};
-        }
-      });
-    } catch { liq=null; }
-    return liq;
-  }
-  function setLevel(l) {
-    state.level=l;
-    const n=findLiquid();
-    if (n) {
-      const k=Math.max(.001,l), bottom=n.p0+n.minY*n.s0;
-      n.o.visible=l>.01; n.o.scale.y=n.s0*k; n.o.position.y=bottom-n.minY*n.s0*k;
-    }
-    updateModelMaterials();
-  }
-  function animateLevel(to,ms) {
-    const from=state.level;
-    if (reduced() || Math.abs(to-from)<.001) { setLevel(to); return Promise.resolve(); }
-    const t0=performance.now();
-    return new Promise(resolve=>{
-      const tick=now=>{
-        const p=Math.min(1,(now-t0)/ms), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
-        setLevel(from+(to-from)*e);
-        p<1?requestAnimationFrame(tick):resolve();
-      };
-      requestAnimationFrame(tick);
-    });
   }
   // ---- The scanning cutaway shows a short white segment BEFORE wavelength
   // selection and two rays of ONE selected wavelength across the cells.
@@ -253,25 +333,39 @@
     try { const o=viewer.getCameraOrbit(), t=viewer.getCameraTarget(); return {orbit:`${o.theta}rad ${o.phi}rad ${o.radius}m`,target:`${t.x}m ${t.y}m ${t.z}m`}; }
     catch { return null; }
   }
-  async function opticalSweep(solution,ms,title,onProgress) {
+  function setWorkProgress(percent,phase) {
+    const value=Math.max(0,Math.min(100,Math.round(percent)));
+    $('operation-progress').hidden=false;
+    $('progress-phase').textContent=phase;
+    $('progress-value').textContent=`${value}%`;
+    $('progress-fill').style.width=`${value}%`;
+    $('progress-meter').setAttribute('aria-valuenow',String(value));
+  }
+  async function opticalSweep(solution,ms,title,onProgress,fixedNm=null) {
     const [start,end]=ranges[state.range], cam=saveCamera();
+    const from=fixedNm??(state.workflow==='lambda'?end:start), to=fixedNm??(state.workflow==='lambda'?start:end);
     const sv=scanView(); viewer.fieldOfView='30deg'; viewer.cameraOrbit=sv.orbit; viewer.cameraTarget=sv.target;   // zoom dari atas ke kuvet
+    setWorkProgress(4,'Menutup ruang sampel');
     await setLid(false);
     await tween(600,p=>{ setLidGhost(p); setMonoGhost(p); });                      // tutup & rumah monokromator jadi tembus pandang
+    setWorkProgress(15,'Sumber cahaya menyala');
     showBeam(true);
     await wait(reduced()?0:280);                                             // lampu menyala lebih dulu
-    await tween(420,p=>beamLook(start,solution,p));                           // kemudian prisma, spektrum, dan dua jalur terpilih
+    await tween(420,p=>beamLook(from,solution,p));                           // kemudian prisma, spektrum, dan dua jalur terpilih
     $('scan-hud').hidden=false;
     const stopPulses=startPulses();
     await tween(ms,p=>{
-      const nm=start+(end-start)*p;
+      const nm=from+(to-from)*p;
       const col=css(beamLook(nm,solution));
-      $('hud-title').textContent=`${title} · ${lampFor(nm).name}`;
-      $('hud-nm').textContent=`${Math.round(nm)} nm${nm<400?' · UV':''}`; $('hud-nm').style.color=col; $('hud-bar').style.width=`${(p*100).toFixed(1)}%`; $('hud-bar').style.background=col;
+      const phase=p<.3?'Monokromator memilih λ':p<.68?'Cahaya melewati blanko & sampel':'Detektor membaca cahaya';
+      setWorkProgress(22+p*68,`${title} · ${phase}`);
+      $('hud-title').textContent=phase;
+      $('hud-nm').textContent=`${fixedNm==null?Math.round(nm):formatPeak(nm)} nm${nm<400?' · UV':''}`; $('hud-nm').style.color=col; $('hud-bar').style.width=`${(p*100).toFixed(1)}%`; $('hud-bar').style.background=col;
       if (onProgress) onProgress(p,nm);
     });
     stopPulses();
     $('scan-hud').hidden=true; showBeam(false);
+    setWorkProgress(95,'Detektor mengirim hasil ke software');
     await tween(500,p=>{ setLidGhost(1-p); setMonoGhost(1-p); });
     if (cam) { viewer.cameraOrbit=cam.orbit; viewer.cameraTarget=cam.target; }     // kembali ke sudut semula
     await wait(reduced()?0:700);
@@ -407,116 +501,202 @@
     requestAnimationFrame(positionPartCard);
   }
   function updateWeightPanel(solution) {
-    const panel=$('weight-panel'), input=$('sample-weight'), select=$('weight-select'), manualWrap=$('manual-weight-wrap'), info=$('weight-info');
+    const panel=$('weight-panel'), input=$('sample-weight'), info=$('weight-info');
     if (!panel || !solution) return;
-    const isSample=['presisi-1','presisi-2','presisi-3','presisi-4','presisi-5','akurasi'].includes(solution.id);
+    const isSample=solution.family==='sampel';
     panel.hidden=!isSample;
     if(isSample){
-      const applyWeight=()=>{
-        const val=select.value==='manual'?Number(input.value):Number(select.value);
-        solution.weight=Number.isFinite(val)?val:0;
-        info.textContent=`Bobot ${solution.name}: ${solution.weight.toFixed(4)} gram`;
+      input.value=solution.weight>0?String(solution.weight).replace('.',','):'';
+      info.textContent=solution.custom?'Isi bobot positif yang ditimbang. Bobot sampel tambahan disimpan di browser.':`Nilai awal dari praktikum: ${formatWeight(core.datasets[core.datasetKey].weights[core.samples.indexOf(solution)])} g. Ubah sesuai bobot yang ditimbang.`;
+      input.onchange=()=>{
+        const val=parsePositiveDecimal(input.value);
+        if(val===null){
+          info.textContent='Isi bobot positif dalam gram, misalnya 0,0053 atau 0.0053.';
+          input.setAttribute('aria-invalid','true');
+          updateControls();
+          return;
+        }
+        input.setAttribute('aria-invalid','false');
+        solution.weight=val;
+        massOverrides[core.datasetKey] ??= {};
+        massOverrides[core.datasetKey][solution.id]=val;
+        saveMassOverrides();
+        input.value=String(val).replace('.',',');
+        info.textContent=`Bobot ${solution.name}: ${formatWeight(val)} g. Hasil scan berikutnya memakai bobot ini.`;
+        updateControls();drawSampleResults();if(solution.custom)renderCustomSolutions();
       };
-      select.value=['0.010','0.050','0.100'].includes(String(solution.weight))?String(solution.weight):'manual';
-      input.value=(solution.weight ?? 0.010).toFixed(4);
-      manualWrap.hidden=select.value!=='manual';
-      info.textContent=`${solution.name} menggunakan bobot preparasi sampel.`;
-      select.onchange=()=>{manualWrap.hidden=select.value!=='manual';applyWeight();};
-      input.onchange=applyWeight;
     }
+  }
+  let renderCustomSolutions=()=>{};
+  function commitManualAbs(solution) {
+    if(solution.family!=='sampel')return;
+    const input=$('manual-abs'), raw=input.value.trim().replace(',','.');
+    absOverrides[core.datasetKey] ??= {};
+    if(!raw) delete absOverrides[core.datasetKey][solution.id];
+    else if(parseNonnegativeDecimal(raw)!==null) absOverrides[core.datasetKey][solution.id]=raw;
+    saveAbsOverrides();
+    updateControls();
+  }
+  function updateAbsPanel(solution) {
+    const panel=$('abs-entry'),input=$('manual-abs'),info=$('manual-abs-info');
+    panel.hidden=solution.family!=='sampel';
+    input.value=solution.family==='sampel'?absOverrides[core.datasetKey]?.[solution.id]||'':'';
+    input.placeholder=solution.custom?'Wajib, contoh 0,672':'Kosong = data praktikum';
+    info.textContent=solution.custom?'Wajib diisi. Abs yang diketik menjadi titik acuan kurva ilustratif; bukan pembacaan alat.':'Opsional. Kosong memakai Abs asli praktikum; angka yang diketik disimpan sebagai input manual.';
+    input.onchange=()=>commitManualAbs(solution);
+    input.oninput=()=>{commitManualAbs(solution);};
   }
   // Isi kuvet depan (sampel). Kuvet belakang selalu aquades (blanko).
   function putInFront(id) {
     state.selected=id;
     updateWeightPanel(getSolution(id));
+    updateAbsPanel(getSolution(id));
     updateModelMaterials();updateControls();
   }
-  // Every refill first frames both cells, including automated changes after a
-  // scan. Restore the exact previous camera after the liquid has settled.
-  function fillView() {
-    const stage=$('stage'), aspect=stage.clientWidth/Math.max(1,stage.clientHeight);
-    const t=2*Math.tan(Math.PI/12);
-    const distance=Math.max(.45/t,.43/(t*aspect),.80);
-    return {orbit:`180deg 34deg ${distance.toFixed(2)}m`,target:'-.166m .255m -.027m'};
-  }
-  // Kuvet depan dikosongkan, lalu diisi larutan baru. withVial: botol dari rak terbang ke kuvet dan menuang.
-  async function fillFront(id,withVial) {
-    const original=state.modelReady?saveCamera():null;
-    if(original) {
-      const target=fillView();
-      viewer.cameraOrbit=target.orbit;viewer.cameraTarget=target.target;
-      await wait(reduced()?0:580);
-    }
+  // Both vessels are separate scene groups. Lift the occupied vessel away,
+  // exchange it above the rack, then lower the selected, already-filled one.
+  const cuvetteNodes={};
+  function findCuvette(slot) {
+    if (cuvetteNodes[slot]) return cuvetteNodes[slot];
     try {
-      if (state.level>.01) await animateLevel(0,450);
-      putInFront(id);
-      if (withVial && !reduced()) await pourFromVial(id); else await animateLevel(1,1000);
-    } finally {
-      if(original) {
-        viewer.cameraOrbit=original.orbit;viewer.cameraTarget=original.target;
-        await wait(reduced()?0:500);
-      }
-    }
+      const sym=Object.getOwnPropertySymbols(viewer).find(x=>x.description==='scene');
+      viewer[sym]?.traverse(o=>{if(o.name===slot+'CuvetteLift')cuvetteNodes[slot]=o;});
+    } catch { /* Model not ready yet; the selected solution still updates. */ }
+    return cuvetteNodes[slot]||null;
   }
-  async function pourFromVial(id) {
-    const btn=document.querySelector(`.solution[data-solution="${id}"]`), src=btn?.querySelector('.vial');
-    if (!src) return animateLevel(1,1200);
-    const sol=getSolution(id), sr=src.getBoundingClientRect(), stg=$('stage').getBoundingClientRect();
-    const ar=document.querySelector('.fill-anchor').getBoundingClientRect();
-    const ok=ar.width>0 && ar.left>stg.left && ar.left<stg.right && ar.top>stg.top && ar.top<stg.bottom;
-    const tx=ok?ar.left:stg.left+stg.width/2, ty=ok?ar.top:stg.top+stg.height*.4;
-    const fly=src.cloneNode(true);
-    fly.classList.add('fly-vial');
-    fly.style.cssText+=`left:${sr.left}px;top:${sr.top}px;width:${sr.width}px;height:${sr.height}px;--fluid:${sol.color}`;
-    document.body.append(fly);
-    btn.classList.add('lifted');
-    const ox=sr.left+sr.width/2, oy=sr.top+sr.height*.12, dx=tx-ox, dy=ty-34-oy, S=1.9;
-    const go=(frames,ms)=>fly.animate(frames,{duration:ms,easing:'ease-in-out',fill:'forwards'}).finished;
-    await go([{transform:'none'},{transform:'translateY(-26px) scale(1.5)',offset:.2},{transform:`translate(${dx}px,${dy-44}px) scale(${S})`,offset:.7},{transform:`translate(${dx}px,${dy}px) scale(${S}) rotate(-105deg)`}],1250);
-    const stream=document.createElement('div');
-    stream.className='pour-stream';stream.style.cssText+=`left:${tx-1}px;top:${ty-30}px;--fluid:${sol.color}`;
-    document.body.append(stream);
-    stream.animate([{height:'0px',opacity:1},{height:'66px',opacity:1}],{duration:280,fill:'forwards'});
-    await wait(260);
-    await animateLevel(1,1400);
-    await stream.animate([{opacity:1},{opacity:0}],{duration:220,fill:'forwards'}).finished;
-    stream.remove();
-    await go([{transform:`translate(${dx}px,${dy}px) scale(${S}) rotate(-105deg)`},{transform:`translate(${dx}px,${dy-44}px) scale(${S})`,offset:.35},{transform:'none'}],1000);
-    fly.remove();btn.classList.remove('lifted');
+  function setCuvetteContents(slot,id) {
+    if(slot==='Blank') { state.blankReady=true;updateControls(); }
+    else putInFront(id);
+  }
+  async function swapCuvette(slot,id) {
+    const vessel=state.modelReady?findCuvette(slot):null;
+    if(!vessel || reduced()) {setCuvetteContents(slot,id);return;}
+    const side=slot==='Blank' ? .065 : -.065;
+    const pose=(x,y,z,angle)=>{
+      vessel.position.set(x,y,z);vessel.rotation.z=angle;
+      applyLidPose(state.lidProgress);
+    };
+    try {
+      // Lift straight out of its holder before travelling over the edge.
+      await tween(480,p=>{const e=p*p*(3-2*p);pose(0,.165*e,0,0);});
+      await tween(400,p=>{const e=p*p*(3-2*p);pose(.12*e,.165,side*e,-.10*e);});
+      vessel.visible=false;
+      setCuvetteContents(slot,id);
+      pose(-.12,.165,side,.10);
+      await wait(100);
+      vessel.visible=true;
+      await tween(440,p=>{const e=p*p*(3-2*p);pose(-.12*(1-e),.165,side*(1-e),.10*(1-e));});
+      await tween(520,p=>{const e=p*p*(3-2*p);pose(0,.165*(1-e),0,0);});
+    } finally {
+      vessel.visible=true;pose(0,0,0,0);
+    }
   }
   function frontMessage(solution) {
     const head=`${solution.name} ada di kuvet depan, kuvet belakang berisi aquades.`;
-    if (!state.instrumentOn) return `${head} Nyalakan alat, lalu jalankan Zero + baseline dengan aquades di kedua kuvet.`;
-    if (!state.blanked) return `${head} Jalankan Zero + baseline lagi, karena kelompok larutan berubah.`;
+    if (!state.instrumentOn) return `${head} Nyalakan UPS, alat, PCU, lalu buka software.`;
+    if (!state.blanked) return `${head} Jalankan Zero blanko lagi, karena kelompok larutan berubah.`;
     return `${head} Tekan Mulai scan.`;
   }
-  async function chooseSolution(id) {
+  async function chooseSolution(id,datasetKey) {
     if (busy()) return;
     const solution=getSolution(id);
-    state.currentScan=null;
+    if(solution.archived)return;
+    if (solution.family!=='blanko' && datasetKey!==core.datasetKey) {
+      if (!core.setDataset(datasetKey)) return;
+      applyMassOverrides();
+      state.blanked=false;state.zeroed=false;state.zeroGroup=null;state.lastResult=null;
+      if (!Number.isFinite(state.confirmedPeaks[datasetKey])) state.workflow='lambda';
+      $('lambda-input').value='';
+      updateFormula(null);
+      drawCalibration();
+    }
+    if(solution.family!=='blanko'&&!Number.isFinite(state.confirmedPeaks[core.datasetKey]))state.workflow='lambda';
+    if(solution.family!=='blanko')$('custom-sample-series').value=core.datasetKey;
     if (solution.family!=='blanko') {
-      state.queueId=id;
-      // Ganti kelompok (standar, presisi, dst.) harus Zero blanko–blanko lagi.
-      if (state.zeroGroup!==solution.family) { state.blanked=false; state.zeroGroup=null; }
+      const [start,end]=ranges[state.range];
+      if(core.peakNm<start || core.peakNm>end) state.range='uv';
+      state.wavelength=core.peakNm;
+    }
+    state.currentScan=null;
+    $('operation-progress').hidden=true;
+    if (solution.family==='blanko') {state.blanked=false;state.zeroed=false;state.zeroGroup=null;}
+    else {
+      state.queueId=id;state.requiresSelection=false;
+      if (state.zeroGroup!==solution.family) {state.blanked=false;state.zeroGroup=null;}
     }
     state.filling=true;updateControls();
-    status(`Mengambil ${solution.name} dari rak…`);
-    await setLid(true);
-    await fillFront(id,true);
-    drawSpectrum();
-    state.filling=false;updateControls();
-    status(frontMessage(solution));
+    const slot=solution.family==='blanko'?'Blank':'Sample';
+    status(`Mengganti kuvet ${slot==='Blank'?'blanko belakang':'sampel depan'}…`);
+    try {
+      await setLid(true);
+      await swapCuvette(slot,id);
+      drawSpectrum();
+      status(slot==='Blank'?
+        `Kuvet blanko aquades terpasang di belakang; kuvet depan tetap ${getSolution(state.selected).name}. ${state.requiresSelection?'Pilih seri standar atau sampel di baki dahulu.':state.workflow==='lambda'?'Ketik λ praktikum di komputer.':'Jalankan Zero blanko sebelum scan.'}`:
+        `${state.workflow==='lambda'?`Ketik λ ${formatPeak(core.peakNm)} nm dari praktikum lalu Terapkan λ.`:frontMessage(solution)} Seri ${core.datasets[core.datasetKey].label}.`);
+    } finally {state.filling=false;updateControls();}
   }
   function makeSolutions() {
-    const containers={blanko:$('blank-solutions'),standar:$('standard-solutions'),sampel:$('sample-solutions'),lainnya:$('other-solutions')};
-    for (const s of core.solutions) {
+    const containers={blanko:$('blank-solutions'),standar:$('standard-solutions'),sampel:$('sample-solutions')};
+    const customRows={};
+    const addButton=(s,parent,key)=>{
       const button=document.createElement('button');button.type='button';button.className='solution';button.dataset.solution=s.id;
-      button.setAttribute('aria-pressed','false');button.title=`Masukkan ${s.name} ke kuvet abu`;
-      const vial=document.createElement('span');vial.className='vial';vial.style.setProperty('--fluid',s.color);vial.setAttribute('aria-hidden','true');
-      button.append(vial,document.createTextNode(s.name));button.addEventListener('click',()=>chooseSolution(s.id));
-      containers[s.family].append(button);
+      if (key) button.dataset.dataset=key;
+      const place=s.family==='blanko'?'belakang (rak merah)':'depan (rak abu)';
+      const data=core.datasets[key];
+      button.setAttribute('aria-pressed','false');button.title=`Pasang kuvet ${s.name} di ${place}${data?` · ${data.label}, λmaks ${formatPeak(data.peakNm)} nm`:''}`;
+      const vessel=document.createElement('span');vessel.className='cuvette-icon';vessel.style.setProperty('--fluid',s.color);vessel.setAttribute('aria-hidden','true');
+      button.append(vessel,document.createTextNode(s.name));
+      if (s.family==='sampel') {
+        const index=core.samples.indexOf(s), mass=document.createElement('small');
+        mass.textContent=s.custom?(s.weight>0?`${formatWeight(s.weight)} g`:'isi bobot'):`${data.weights[index].toFixed(4).replace('.',',')} g`;
+        button.append(mass);
+      }
+      button.addEventListener('click',()=>chooseSolution(s.id,key));parent.append(button);
+    };
+    addButton(core.solutions[0],containers.blanko);
+    for (const family of ['standar','sampel']) {
+      for (const key of ['praktikum','jena']) {
+        const block=document.createElement('div');block.className='series-block';block.dataset.series=key;
+        const heading=document.createElement('div');heading.className='series-heading';
+        const title=document.createElement('strong');title.textContent=core.datasets[key].series+(family==='sampel'?` · ${core.datasets[key].sampleMass}`:'');
+        const source=document.createElement('small');source.textContent=`${family==='standar'?'Standar':'Sampel'} ${key==='praktikum'?'1':'2'}`;
+        heading.append(title,source);
+        const row=document.createElement('div');row.className='solution-row';
+        for (const s of family==='standar'?core.standards:core.samples) addButton(s,row,key);
+        block.append(heading,row);
+        if(family==='sampel'){
+          const extra=document.createElement('div');extra.className='custom-series';extra.hidden=true;
+          const title=document.createElement('small');title.textContent='SAMPEL TAMBAHAN';
+          const customRow=document.createElement('div');customRow.className='solution-row';
+          extra.append(title,customRow);block.append(extra);
+          customRows[key]={extra,row:customRow};
+        }
+        containers[family].append(block);
+      }
     }
-    $('other-count').textContent=`(${core.solutions.filter(s=>s.family==='lainnya').length})`;
+    renderCustomSolutions=()=>{
+      for(const [key,where] of Object.entries(customRows)){
+        where.row.replaceChildren();
+        const current=customSamples.filter(s=>s.dataset===key && !s.archived);
+        where.extra.hidden=!current.length;
+        for(const s of current){
+          const item=document.createElement('div');item.className='custom-solution-item';
+          addButton(s,item,key);
+          const remove=document.createElement('button');remove.type='button';remove.className='custom-remove';remove.textContent='×';remove.title=`Arsipkan ${s.name}`;remove.setAttribute('aria-label',`Arsipkan ${s.name}`);
+          remove.addEventListener('click',()=>{
+            if(busy())return;
+            s.archived=true;saveCustomSamples();
+            if(state.selected===s.id) void chooseSolution('std-0',key);
+            renderCustomSolutions();drawSampleResults();updateControls();
+            $('custom-sample-feedback').textContent=`${s.name} diarsipkan. Hasil lama tetap di Riwayat.`;
+          });
+          item.append(remove);where.row.append(item);
+        }
+      }
+      updateControls();
+    };
+    renderCustomSolutions();
   }
   function interpolatedValue(points,nm) {
     if (!points?.length) return 0;
@@ -542,13 +722,13 @@
       $('chart-cursor').innerHTML=`<line x1="${x}" y1="16" x2="${x}" y2="176"/><circle cx="${x}" cy="${y}" r="5"/>`;
     } else $('chart-cursor').innerHTML='';
     $('range-start').textContent=`${start} nm`;$('range-end').textContent=`${end} nm`;
-    $('chart-title').textContent=state.currentScan?(state.currentScan.baseline?'Baseline · blanko–blanko':`Spektrum · ${state.currentScan.name||getSolution(state.currentScan.solutionId).name}`):'Spektrum serapan';
+    $('chart-title').textContent=state.currentScan?(state.currentScan.baseline?'Baseline · blanko–blanko':`Spektrum ilustratif · ${state.currentScan.name||getSolution(state.currentScan.solutionId).name}`):'Spektrum ilustratif';
     updateControls();
   }
   function calibrationPoints() {
     return core.standards.flatMap(s=>{
-      const record=state.history.find(r=>r.solutionId===s.id && r.start<=246 && r.end>=246);
-      return record?[{ppm:s.ppm,abs:record.abs246}]:[];
+      const record=state.history.find(r=>r.kind!=='lambda' && r.dataset===core.datasetKey && r.solutionId===s.id && r.readNm===core.peakNm && r.start<=core.peakNm && r.end>=core.peakNm);
+      return record?[{ppm:s.ppm,abs:record.absPeak}]:[];
     });
   }
   function usableCalibration() {
@@ -559,9 +739,11 @@
   }
   function drawCalibration() {
     const measured=calibrationPoints(),fit=usableCalibration();
-    const x=ppm=>46+ppm/25*356, y=abs=>162-abs/.65*140, mono='font-family="IBM Plex Mono, monospace"';
+    $('cal-series').textContent=`Seri ${formatPeak(core.peakNm)} nm · ${core.datasets[core.datasetKey].label}`;
+    const yMax=Math.max(1.1,...core.standards.map(s=>s.targetAbs),...measured.map(p=>p.abs))*1.08;
+    const x=ppm=>46+ppm/25*356, y=abs=>162-abs/yMax*140, mono='font-family="IBM Plex Mono, monospace"';
     let svg='<rect x="0" y="0" width="420" height="200" fill="white"/>';
-    for(const level of [0,.2,.4,.6]) svg+=`<line x1="46" y1="${y(level)}" x2="404" y2="${y(level)}" stroke="#e7eff2"/><text x="40" y="${y(level)+3}" text-anchor="end" font-size="9" fill="#9cb1ba">${level.toFixed(1)}</text>`;
+    for(const level of [0,yMax/4,yMax/2,yMax*3/4]) svg+=`<line x1="46" y1="${y(level)}" x2="404" y2="${y(level)}" stroke="#e7eff2"/><text x="40" y="${y(level)+3}" text-anchor="end" font-size="9" fill="#9cb1ba">${level.toFixed(1)}</text>`;
     svg+='<line x1="46" y1="162" x2="404" y2="162" stroke="#adc8d3"/>';
     for(const ppm of [0,5,10,15,20,25]) svg+=`<text x="${x(ppm)}" y="177" text-anchor="middle" font-size="9" fill="#91aab5">${ppm}</text>`;
     svg+='<text x="225" y="194" text-anchor="middle" font-size="10" fill="#6f8b99">Konsentrasi tiamin (ppm)</text><text transform="translate(11 92) rotate(-90)" text-anchor="middle" font-size="10" fill="#6f8b99">Absorbansi (A)</text>';
@@ -578,26 +760,48 @@
     }
     $('calibration-chart').innerHTML=svg;
     $('cal-points').replaceChildren();
-    for(const s of core.standards){const el=document.createElement('span');el.className='cal-point'+(measured.some(p=>p.ppm===s.ppm)?' done':'');el.textContent=`${s.ppm} ppm ${measured.some(p=>p.ppm===s.ppm)?'✓':'·'}`;$('cal-points').append(el);}
+    for(const s of core.standards){const found=measured.find(p=>p.ppm===s.ppm),el=document.createElement('span');el.className='cal-point'+(found?' done':'');el.textContent=found?`${s.ppm} ppm · ${formatAbs(found.abs)} Abs`:`${s.ppm} ppm · belum scan`;$('cal-points').append(el);}
     let message='Ukur setidaknya tiga standar untuk membuat garis kalibrasi.';
     if(measured.length>=3 && !fit) message='Garis kalibrasi belum layak: diperlukan kemiringan positif dan R² ≥ 0,95.';
     if(fit) {
       message=`A = ${fit.slope.toFixed(4)} × C + ${fit.intercept.toFixed(4)} · R² ${fit.r2.toFixed(4)}`;
-      const smp=state.history.find(r=>getSolution(r.solutionId).family==='sampel' && r.abs246!=null);
-      if(smp) message+=` · ${smp.name} ≈ ${Math.max(0,(smp.abs246-fit.intercept)/fit.slope).toFixed(2)} ppm`;
+      const smp=state.history.find(r=>r.dataset===core.datasetKey && getSolution(r.solutionId).family==='sampel' && r.absPeak!=null);
+      if(smp) message+=` · ${smp.name} ≈ ${Math.max(0,(smp.absPeak-fit.intercept)/fit.slope).toFixed(2)} ppm`;
     }
     $('cal-result').textContent=message;
+    drawSampleResults();
+  }
+  function drawSampleResults() {
+    const list=$('sample-result-list');list.replaceChildren();
+    for (const sample of [...core.samples,...customSamples.filter(s=>s.dataset===core.datasetKey && !s.archived)]) {
+      const record=state.history.find(r=>r.kind!=='lambda' && r.dataset===core.datasetKey && r.solutionId===sample.id && r.readNm===core.peakNm && r.absPeak!=null);
+      const tr=document.createElement('tr');
+      const name=document.createElement('th');name.scope='row';name.textContent=sample.name;
+      const mass=document.createElement('td');const weight=record?.weight ?? sample.weight;mass.textContent=weight>0?formatWeight(weight):'—';
+      const abs=document.createElement('td');abs.textContent=record?`${recordAbs(record)}${record.origin==='manual'?' · input':''}`:'—';
+      tr.append(name,mass,abs);list.append(tr);
+    }
   }
   // Rumus perhitungan di bagian bawah monitor, muncul setelah scan.
   function updateFormula(rec) {
     const bar=$('formula-bar');
-    if(!rec || rec.baseline) { bar.dataset.has='0'; bar.hidden=true; return; }
-    const A=rec.readAbs, T=Math.pow(10,-A), fit=usableCalibration(), sol=getSolution(rec.solutionId), f=(v,d)=>v.toFixed(d);
-    let t=`<span class="fm-h">RUMUS · ${rec.name} pada ${rec.readNm} nm</span>`+
-      `A = −log T = <b>${f(A,3)}</b><br>T = 10<sup>−A</sup> = 10<sup>−${f(A,3)}</sup> = ${f(T,3)}<br>%T = T × 100 = <b>${f(T*100,1)} %</b><br>Lambert–Beer: A = ε · b · C`;
+    if(!rec || rec.baseline || rec.kind==='lambda') { bar.dataset.has='0'; bar.hidden=true; return; }
+    const A=rec.readAbs, T=Math.pow(10,-A), fit=usableCalibration(), sol=getSolution(rec.solutionId), f=(v,d)=>v.toFixed(d), digits=absDigits(rec.dataset);
+    const aLabel=rec.origin==='manual'?escapeHtml(recordAbs(rec)):f(A,digits);
+    let t=`<span class="fm-h">RUMUS · ${escapeHtml(rec.name)} pada ${formatPeak(rec.readNm)} nm</span>`+
+      `A = −log T = <b>${aLabel}</b>${rec.origin==='manual'?' <small>(input manual)</small>':''}<br>T = 10<sup>−A</sup> = 10<sup>−${aLabel}</sup> = ${f(T,3)}<br>%T = T × 100 = <b>${f(T*100,1)} %</b><br>Lambert–Beer: A = ε · b · C`;
     if(fit) {
       t+=`<br>Regresi: A = ${f(fit.slope,4)}·C + ${f(fit.intercept,4)} (R² = ${f(fit.r2,4)})`;
-      if(sol.family==='sampel' && rec.abs246!=null) t+=`<br><span class="fm-r">C = (A − ${f(fit.intercept,4)}) / ${f(fit.slope,4)} = ${f(Math.max(0,(rec.abs246-fit.intercept)/fit.slope),2)} ppm</span>`;
+      if(sol.family==='sampel' && rec.absPeak!=null && rec.dataset===core.datasetKey) {
+        const conc=Math.max(0,(rec.absPeak-fit.intercept)/fit.slope);
+        t+=`<br><span class="fm-r">C = (A − ${f(fit.intercept,4)}) / ${f(fit.slope,4)} = ${f(conc,2)} mg/L</span>`;
+        if(rec.weight>0) {
+          const mgKg=conc*100/rec.weight;
+          t+=`<br>V labu = 100 mL · bobot sampel = ${formatWeight(rec.weight)} g`+
+            `<br>Kadar = C × V / bobot = ${f(mgKg,2)} mg/kg`+
+            `<br>Kadar/tablet = kadar × (0,1778 / 1000) = <b>${f(mgKg*.1778/1000,2)} mg/tablet</b>`;
+        }
+      }
     } else if(sol.family==='standar') t+='<br>Regresi muncul setelah minimal 3 standar di-scan dengan R² ≥ 0,95.';
     bar.innerHTML=t; bar.dataset.has='1'; bar.hidden=state.tab==='history';
   }
@@ -607,80 +811,194 @@
     for(const item of state.history) {
       const row=document.createElement('button');row.type='button';row.className='history-item';row.title='Lihat lagi kurva ini';
       const left=document.createElement('div'), name=document.createElement('strong'),info=document.createElement('small'),value=document.createElement('span');
-      name.textContent=item.name;info.textContent=`${new Date(item.ts).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · ${item.start}–${item.end} nm`;
-      value.textContent=`${Number(item.readAbs ?? item.abs246).toFixed(3)} Abs`;left.append(name,info);row.append(left,value);
-      row.addEventListener('click',()=>{state.range=Object.keys(ranges).find(k=>ranges[k][0]===item.start&&ranges[k][1]===item.end)||'uv';state.wavelength=Math.max(item.start,Math.min(item.end,246));state.currentScan=item;state.lastResult=item;updateFormula(item);drawSpectrum();setTab('scan');status('Hasil dari riwayat sedang ditampilkan.');});
+      name.textContent=(item.kind==='lambda'?'Scan λ · ':'')+item.name;info.textContent=`${new Date(item.ts).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · ${item.start}–${item.end} nm · ${core.datasets[item.dataset]?.label||'Simulasi lama'}`;
+      if (getSolution(item.solutionId).family==='sampel' && Number.isFinite(item.weight)) info.textContent+=` · Bobot ${formatWeight(item.weight)} g`;
+      if(item.origin==='manual')info.textContent+=' · Abs input manual';
+      value.textContent=`${recordAbs(item)} Abs`;left.append(name,info);row.append(left,value);
+      row.addEventListener('click',()=>{
+        if(busy()) return;
+        if(core.datasets[item.dataset] && item.dataset!==core.datasetKey) {core.setDataset(item.dataset);applyMassOverrides();updateModelMaterials();}
+        state.blanked=false;state.zeroed=false;state.zeroGroup=null;state.requiresSelection=true;
+        state.workflow=Number.isFinite(state.confirmedPeaks[core.datasetKey])?'concentration':'lambda';
+        $('lambda-input').value='';
+        state.range=Object.keys(ranges).find(k=>ranges[k][0]===item.start&&ranges[k][1]===item.end)||'uv';
+        state.wavelength=Math.max(item.start,Math.min(item.end,item.readNm||core.peakNm));
+        state.currentScan=item;state.lastResult=item;updateFormula(item);drawSpectrum();drawCalibration();setTab('scan');status('Hasil riwayat ditampilkan. Pilih seri larutan di baki sebelum pengukuran baru.');
+      });
       list.append(row);
     }
   }
+  function powerUps() {
+    if (busy() || (state.upsOn && (state.instrumentOn||state.pcuOn))) return;
+    state.upsOn=!state.upsOn;updateControls();
+    status(state.upsOn?'UPS aktif. Nyalakan alat, kemudian PCU.':'UPS mati. Setelah praktik, catat log book dan rapikan area kerja.');
+  }
   function powerInstrument() {
-    if(busy())return;
-    state.instrumentOn=!state.instrumentOn;state.blanked=false;state.zeroGroup=null;state.currentScan=null;
+    if (busy() || (!state.instrumentOn&&!state.upsOn) || (state.instrumentOn&&state.pcuOn)) return;
+    state.instrumentOn=!state.instrumentOn;
+    state.blanked=false;state.zeroed=false;state.zeroGroup=null;state.currentScan=null;
+    if (!state.instrumentOn) {
+      state.confirmedPeaks={};state.workflow='lambda';
+      $('lambda-input').value='';
+      $('operation-progress').hidden=true;
+    }
     clearTimeout(beamTimer);showBeam(false);updateModelMaterials();drawSpectrum();
-    status(state.instrumentOn?'Alat tersambung. Jalankan Zero + baseline (aquades di kedua kuvet), lalu scan sampel.':'Alat mati. Hasil sebelumnya ada di Riwayat.');
+    status(state.instrumentOn?'Alat aktif. Nyalakan PCU untuk menjalankan software.':'Alat mati. Selanjutnya matikan UPS; riwayat tetap tersimpan.');
+  }
+  function powerPcu() {
+    if (busy() || (!state.pcuOn&&(!state.upsOn||!state.instrumentOn)) || (state.pcuOn&&state.softwareOpen)) return;
+    state.pcuOn=!state.pcuOn;
+    if(!state.pcuOn){state.blanked=false;state.zeroed=false;state.currentScan=null;}
+    updateControls();
+    status(state.pcuOn?'PCU aktif dan monitor menyala. Buka software lalu ketik λ praktikum.':'PCU shutdown. Tekan tombol daya pada alat, lalu matikan UPS.');
+  }
+  function changeWorkflow(mode) {
+    if (busy() || (mode==='concentration'&&!Number.isFinite(state.confirmedPeaks[core.datasetKey]))) return;
+    if(state.workflow===mode)return;
+    state.workflow=mode;state.blanked=false;state.zeroGroup=null;state.currentScan=null;
+    $('operation-progress').hidden=true;
+    state.range='uv';state.wavelength=mode==='concentration'?state.confirmedPeaks[core.datasetKey]:core.peakNm;
+    updateFormula(null);drawSpectrum();
+    status(mode==='lambda'?`Ketik λ ${formatPeak(core.peakNm)} nm sesuai data praktikum.`:'λ terpasang. Zero blanko dahulu, lalu ukur deret standar dan sampel.');
+  }
+  async function applyManualLambda() {
+    if(busy() || !state.softwareOpen || !state.instrumentOn || state.workflow!=='lambda')return;
+    const nm=parsePositiveDecimal($('lambda-input').value);
+    const targetKey=Object.keys(core.datasets).find(key=>nm!==null && Math.abs(nm-core.datasets[key].peakNm)<0.000001);
+    if(!targetKey) {
+      $('lambda-input').setAttribute('aria-invalid','true');
+      status('Data praktikum tersedia pada λ 246,5 atau 248,0 nm. Masukkan salah satunya dengan koma atau titik desimal.');
+      return;
+    }
+    $('lambda-input').setAttribute('aria-invalid','false');
+    const changed=targetKey!==core.datasetKey;
+    const previous=getSolution(state.selected);
+    if(changed){
+      // Dua seri memiliki angka Abs yang berbeda. Ganti isi kuvet depan
+      // sebelum menerima λ baru; sampel buatan sendiri tetap di seri asal.
+      const nextId=previous.family==='blanko' || previous.custom ? 'std-0' : previous.id;
+      await chooseSolution(nextId,targetKey);
+      if(core.datasetKey!==targetKey)return;
+    }
+    $('lambda-input').value=formatPeak(nm);
+    state.confirmedPeaks[core.datasetKey]=nm;
+    state.workflow='concentration';state.range='uv';state.wavelength=nm;
+    state.blanked=false;state.zeroGroup=null;state.currentScan=null;
+    $('operation-progress').hidden=true;
+    updateFormula(null);drawSpectrum();drawCalibration();
+    status(`λ ${formatPeak(nm)} nm diterapkan untuk seri ${core.datasets[core.datasetKey].label}.${changed && previous.custom?' Sampel tambahan dari seri sebelumnya diganti Standar 0 ppm.':''} Zero blanko ulang sebelum START ukur.`);
   }
   async function zero() {
-    if(!state.instrumentOn||state.measuring)return;
-    const target=state.queueId;           // larutan yang akan masuk kuvet depan setelah Zero
-    state.measuring=true;state.currentScan=null;
-    await setLid(true);
-    if (state.selected!=='aquades' || state.level<.99) await fillFront('aquades',false);
-    drawSpectrum();
-    status('Zero + baseline: aquades di kedua kuvet; koreksi seluruh rentang sedang direkam…');
-    const [start,end]=ranges[state.range], base=core.spectrum(core.solutions[0],start,end,4);
+    if (!state.upsOn||!state.instrumentOn||!state.pcuOn||!state.softwareOpen||state.workflow!=='concentration'||state.requiresSelection||busy()||!Number.isFinite(state.confirmedPeaks[core.datasetKey])) return;
+    const target=state.queueId;
+    commitManualAbs(getSolution(state.selected));
+    state.measuring=true;state.currentScan=null;state.blanked=false;updateControls();
+    setWorkProgress(0,'Menyiapkan aquades di kedua kuvet');
+    try {
+      await setLid(true);
+      if(state.selected!=='aquades')await swapCuvette('Sample','aquades');
+      await setLid(false);
+      await runBlankCorrection(target,'Zero blanko');
+    } finally {state.measuring=false;drawSpectrum();}
+  }
+  async function runBlankCorrection(target,title) {
+    const [start,end]=ranges[state.range],base=core.spectrum(core.solutions[0],start,end,4);
+    status(`${title}: aquades di kedua kuvet; referensi sedang direkam…`);
     let drawn=0;
-    await opticalSweep(core.solutions[0],2600,'Zero + baseline · aquades',(p,nm)=>{
-      const now=performance.now(); if(now-drawn<90 && p<1) return; drawn=now;
-      state.currentScan={solutionId:'aquades',name:'Aquades',baseline:true,start,end,points:base.filter(q=>q.nm<=nm)}; drawSpectrum();
-    });
-    state.currentScan={solutionId:'aquades',name:'Aquades',baseline:true,start,end,points:core.spectrum(core.solutions[0],start,end,4)};
-    state.blanked=true;state.zeroGroup=groupOf(target);
-    drawSpectrum();
-    // Baseline selesai: tutup dibuka, kuvet depan diisi larutan berikutnya, kuvet belakang tetap blanko.
-    await setLid(true);
-    await fillFront(target,false);
-    state.measuring=false;drawSpectrum();
-    status(`Baseline siap. Kuvet belakang aquades, kuvet depan ${getSolution(target).name}. Tekan Mulai scan.`);
+    try {
+      await opticalSweep(core.solutions[0],1300,title,(p,nm)=>{
+        const now=performance.now();if(now-drawn<90&&p<1)return;drawn=now;
+        state.currentScan={solutionId:'aquades',name:'Aquades',baseline:true,start,end,points:base};
+        state.wavelength=nm;drawSpectrum();
+      },state.confirmedPeaks[core.datasetKey]);
+      state.currentScan={solutionId:'aquades',name:'Aquades',baseline:true,start,end,points:base};
+      state.blanked=true;state.zeroGroup=groupOf(target);
+    } finally {
+      await setLid(true);
+      if(state.selected==='aquades')await swapCuvette('Sample',target);
+    }
+    state.wavelength=state.confirmedPeaks[core.datasetKey];
+    setWorkProgress(100,'Zero selesai · aquades sebagai referensi');
+    status(`${title} selesai. Blanko aquades tetap di belakang; ${getSolution(target).name} kembali ke depan. Klik START ukur.`);
   }
   async function scan() {
-    if(!state.instrumentOn||!state.blanked||state.measuring)return;
-    state.measuring=true;updateControls();status('Cahaya melewati monokromator, kuvet, dan detektor…');
+    if(!state.upsOn||!state.instrumentOn||!state.pcuOn||!state.softwareOpen||state.workflow!=='concentration'||state.requiresSelection||!state.blanked||busy()||!Number.isFinite(state.confirmedPeaks[core.datasetKey]))return;
     const solution=getSolution(state.selected),[start,end]=ranges[state.range];
-    const noise=(Math.random()-.5)*.002;
-    const points=core.spectrum(solution,start,end,4).map(p=>({nm:p.nm,abs:Math.max(0,p.abs+noise)}));
-    let drawn=0;
-    await opticalSweep(solution,3800,`Scanning ${solution.name}`,(p,nm)=>{
-      const now=performance.now(); if(now-drawn<90 && p<1) return; drawn=now;
-      state.currentScan={solutionId:solution.id,name:solution.name,start,end,points:points.filter(q=>q.nm<=nm)}; drawSpectrum();
-    });
-    const readNm=start<=246&&end>=246?246:Math.round((start+end)/2);
-    const record={id:`${Date.now()}-${Math.random().toString(36).slice(2,7)}`,ts:Date.now(),solutionId:solution.id,name:solution.name,start,end,points,
-      readNm,readAbs:interpolatedValue(points,readNm),abs246:start<=246&&end>=246?interpolatedValue(points,246):null};
-    state.history.unshift(record);state.history=state.history.slice(0,60);saveHistory();
-    state.currentScan=record;state.lastResult=record;updateFormula(record);
-    if(state.wavelength<start||state.wavelength>end)state.wavelength=start;
-    const nextId=nextInSequence(solution.id);
-    if(!nextId) state.measuring=false;
-    drawSpectrum();drawCalibration();drawHistory();
-    if(nextId) {
-      // Otomatis lanjut ke larutan berikutnya: tutup dibuka, kuvet depan diganti, tanpa loncat urutan.
-      const list=sequences[solution.family], next=getSolution(nextId);
-      status(`${solution.name} selesai. Menyiapkan ${next.name} di kuvet depan…`);
-      await setLid(true);
-      state.queueId=nextId;await fillFront(nextId,true);
-      state.measuring=false;updateControls();
-      status(`${solution.name} selesai. ${next.name} sudah di kuvet depan (${list.indexOf(nextId)+1} dari ${list.length}), kuvet belakang tetap aquades. Tekan Mulai scan. Rumus ada di bagian bawah layar.`);
-    } else if(sequences[solution.family]) {
-      const kurva=solution.family==='standar'?' Lihat Kurva kalibrasi.':'';
-      status(`${solution.name} selesai. Semua ${groupLabels[solution.family]} sudah diukur.${kurva} Untuk kelompok lain, pilih larutan di baki lalu Zero lagi. Rumus ada di bagian bawah layar.`);
-    } else {
-      status(`${solution.name} selesai dipindai. Geser penunjuk pada kurva untuk membaca Abs atau %T. Rumus ada di bagian bawah layar.`);
+    let manualText=null;
+    if(solution.family==='sampel'){
+      const mass=parsePositiveDecimal($('sample-weight').value);
+      if(mass===null){status('Isi bobot sampel positif sebelum pengukuran.');return;}
+      manualText=manualAbsText(solution);
+      if((solution.custom || $('manual-abs').value.trim()) && !manualText){status('Isi Abs manual dengan angka nonnegatif sebelum pengukuran.');updateControls();return;}
+      commitManualAbs(solution);
+      solution.weight=mass;
+      massOverrides[core.datasetKey] ??= {};
+      massOverrides[core.datasetKey][solution.id]=mass;
+      saveMassOverrides();
     }
+    state.measuring=true;updateControls();
+    setWorkProgress(0,`Menyiapkan pembacaan ${solution.name}`);
+    status(manualText?'Abs input manual digunakan sebagai titik acuan. Jalur cahaya dan kurva ditampilkan sebagai ilustrasi.':'Cahaya melewati sumber → monokromator → kuvet → detektor…');
+    const measurement=manualText===null?solution:{...solution,manualAbs:parseNonnegativeDecimal(manualText)};
+    const points=core.spectrum(measurement,start,end,4);
+    let drawn=0;
+    try {
+      await opticalSweep(measurement,1600,`Baca λ ${solution.name}`,(p,nm)=>{
+        const now=performance.now();if(now-drawn<90&&p<1)return;drawn=now;
+        state.currentScan={solutionId:solution.id,name:solution.name,kind:'concentration',start,end,points};
+        state.wavelength=nm;drawSpectrum();
+      },state.confirmedPeaks[core.datasetKey]);
+      const readNm=state.confirmedPeaks[core.datasetKey];
+      const abs=interpolatedValue(points,readNm);
+      const record={id:`${Date.now()}-${Math.random().toString(36).slice(2,7)}`,ts:Date.now(),dataset:core.datasetKey,kind:'concentration',solutionId:solution.id,name:solution.name,weight:solution.family==='sampel'?solution.weight:null,start,end,points,
+        readNm,readAbs:abs,absPeak:abs,origin:manualText===null?'praktikum':'manual',manualAbsText:manualText};
+      state.history.unshift(record);state.history=state.history.slice(0,60);saveHistory();
+      state.currentScan=record;state.lastResult=record;state.wavelength=readNm;
+      updateFormula(record);
+      setWorkProgress(100,`Selesai · ${solution.name}: ${recordAbs(record)} Abs${manualText!==null?' (input manual)':''}`);
+      const nextId=nextInSequence(solution.id);
+      drawSpectrum();drawCalibration();drawHistory();
+      if(nextId) {
+        const list=sequences[solution.family],next=getSolution(nextId);
+        status(`${solution.name} selesai. Menyiapkan ${next.name} di kuvet depan…`);
+        await setLid(true);state.queueId=nextId;await swapCuvette('Sample',nextId);
+        status(`${solution.name} selesai. ${next.name} sudah di kuvet depan (${list.indexOf(nextId)+1} dari ${list.length}); blanko tetap di belakang. Tekan Mulai scan.`);
+      } else if(solution.custom) {
+        status(`${solution.name} selesai. Abs ${recordAbs(record)} adalah input manual; kurva di luar titik ukur merupakan ilustrasi. Pilih sampel lain bila ingin melanjutkan.`);
+      } else if(sequences[solution.family]) {
+        const kurva=solution.family==='standar'?' Lihat Kurva kalibrasi.':'';
+        status(`${solution.name} selesai. Semua ${groupLabels[solution.family]} sudah diukur.${kurva} Untuk kelompok lain, pilih larutan di baki lalu Zero lagi.`);
+      } else status(`${solution.name} selesai dipindai. Geser penunjuk pada kurva untuk membaca Abs atau %T.`);
+    } finally {state.measuring=false;updateControls();}
   }
 
+  $('ups-power').addEventListener('click',powerUps);
   $('instrument-power').addEventListener('click',powerInstrument);
-  $('monitor-power').addEventListener('click',()=>{state.monitorOn=!state.monitorOn;if(!state.monitorOn){state.softwareOpen=false;}updateControls();});
-  $('open-software').addEventListener('click',()=>{state.softwareOpen=true;updateControls();});
+  $('pcu-power').addEventListener('click',powerPcu);
+  $('open-software').addEventListener('click',()=>{if(!state.pcuOn||!state.instrumentOn)return;state.softwareOpen=true;updateControls();status(`Ketik λ ${formatPeak(core.peakNm)} nm sesuai lembar praktikum, lalu Terapkan λ.`);});
+  $('close-software').addEventListener('click',()=>{if(busy())return;state.softwareOpen=false;state.blanked=false;state.zeroed=false;updateControls();status('Software ditutup. Shutdown PCU, lalu matikan alat dan UPS.');});
+  $('workflow-lambda').addEventListener('click',()=>changeWorkflow('lambda'));
+  $('workflow-concentration').addEventListener('click',()=>changeWorkflow('concentration'));
+  $('apply-lambda').addEventListener('click',applyManualLambda);
+  $('lambda-input').addEventListener('keydown',event=>{if(event.key==='Enter')applyManualLambda();});
+  $('sample-weight').addEventListener('input',updateControls);
+  $('custom-sample-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    if(busy())return;
+    const key=$('custom-sample-series').value,name=$('custom-sample-name').value.replace(/\s+/g,' ').trim();
+    const feedback=$('custom-sample-feedback');
+    if(!Object.hasOwn(core.datasets,key)){feedback.textContent='Pilih seri data yang tersedia.';return;}
+    if(!name || name.length>40){feedback.textContent='Isi nama sampel, maksimal 40 karakter.';return;}
+    if(customSamples.filter(s=>!s.archived).length>=50){feedback.textContent='Maksimal 50 sampel tambahan aktif. Arsipkan sampel lama sebelum menambah.';return;}
+    if(customSamples.some(s=>s.dataset===key&&!s.archived&&s.name.toLocaleLowerCase('id')===name.toLocaleLowerCase('id'))){feedback.textContent='Nama sampel ini sudah ada di seri tersebut.';return;}
+    const id=`user-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+    const sample={id,name,dataset:key,archived:false,custom:true,family:'sampel',color:'#dcedf4',alpha:.5,peaks:[],weight:0};
+    customSamples.push(sample);core.solutions.push(sample);saveCustomSamples();
+    $('custom-sample-name').value='';
+    feedback.textContent=`${name} ditambahkan. Isi bobot dan Abs manual di software komputer.`;
+    renderCustomSolutions();drawSampleResults();
+    void chooseSolution(id,key);
+  });
   $('lid-button').addEventListener('click',()=>setLid(!state.lidOpen));
   $('reset-view').addEventListener('click',resetView);
   $('zero-button').addEventListener('click',zero);
@@ -703,15 +1021,11 @@
     if(viewer.availableAnimations?.includes('LidMotion')) {
       applyLidPose(state.lidProgress);
     }
-    liq=undefined;findLiquid();setLevel(state.level);
-    showBeam(false);resetView();
+    updateModelMaterials();
+    showBeam(false);resetView();updateControls();
   });
   viewer.addEventListener('error',()=>{status('Model belum termuat. Periksa berkas spectrophotometer.glb dan jalankan melalui server lokal.');});
   document.querySelectorAll('.software-tabs button').forEach(button=>button.addEventListener('click',()=>setTab(button.dataset.tab)));
-  $('range-select').addEventListener('change',event=>{
-    state.range=event.target.value;state.wavelength=Math.max(ranges[state.range][0],Math.min(ranges[state.range][1],state.wavelength));
-    state.blanked=false;state.zeroGroup=null;state.currentScan=null;drawSpectrum();status('Rentang berubah. Jalankan Zero + baseline lagi pada rentang ini.');
-  });
   $('mode-abs').addEventListener('click',()=>{state.mode='abs';updateControls();});
   $('mode-t').addEventListener('click',()=>{state.mode='t';updateControls();});
   const moveCursor=event=>{
@@ -719,11 +1033,11 @@
     const rect=$('spectrum-chart').getBoundingClientRect();
     const x=(event.clientX-rect.left)/rect.width*420;
     const [start,end]=ranges[state.range];
-    state.wavelength=Math.round(start+Math.max(0,Math.min(1,(x-38)/370))*(end-start));
+    state.wavelength=Math.round((start+Math.max(0,Math.min(1,(x-38)/370))*(end-start))*2)/2;
     drawSpectrum();
   };
   $('chart-hit').addEventListener('pointerdown',event=>{event.target.setPointerCapture(event.pointerId);moveCursor(event);});
   $('chart-hit').addEventListener('pointermove',event=>{if(event.buttons)moveCursor(event);});
   $('clear-history').addEventListener('click',()=>{state.history=[];state.currentScan=null;state.lastResult=null;updateFormula(null);saveHistory();drawSpectrum();drawCalibration();drawHistory();});
-  makeSolutions();updateControls();drawSpectrum();drawCalibration();drawHistory();
+  applyMassOverrides();makeSolutions();saveHistory();updateControls();drawSpectrum();drawCalibration();drawHistory();
 })();

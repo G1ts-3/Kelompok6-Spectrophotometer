@@ -233,11 +233,15 @@ for label, z, holder_mat, liquid_mat in (("Blank", BLANK_Z, red, blank_liquid),
                                          ("Sample", SAMPLE_Z, gray, sample_liquid)):
     x = CUV_X
     rounded_box(label + "Holder", (x, .217, z), (.073, .023, .083), .006, holder_mat)
-    rounded_box(label + "GlassCuvette", (x, .254, z), (.057, .075, .057), .003, glass)
-    rounded_box(label + "Liquid", (x, .247, z), (.047, .047, .047), .002, liquid_mat)
+    # Keep the vessel and its liquid together while lifting/replacing it in JS.
+    lift = len(doc["nodes"])
+    doc["nodes"].append({"name": label + "CuvetteLift", "children": []})
+    doc["nodes"][0]["children"].append(lift)
+    rounded_box(label + "GlassCuvette", (x, .254, z), (.057, .075, .057), .003, glass, lift)
+    rounded_box(label + "Liquid", (x, .247, z), (.047, .047, .047), .002, liquid_mat, lift)
     for side, dx in (("L", -.028), ("R", .028)):
         rounded_box(label + "GlassEdge" + side, (x + dx, .260, z),
-                    (.002, .072, .057), .001, glass)
+                    (.002, .072, .057), .001, glass, lift)
 def prism_mesh(name, tri, y0, y1, mat, parent=0, upright=False, axis=None):
     """Prisma segitiga. Default: segitiga pada bidang x-z, diekstrusi pada y (rebah).
     upright=True: segitiga pada bidang x-y (puncak ke atas), diekstrusi pada z dari y0 ke y1 (berdiri)."""

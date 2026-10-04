@@ -78,7 +78,7 @@
 
       <section class="connection-section" aria-label="Koneksi alat dan komputer">
         <div class="pc-unit ups" id="ups-unit"><span class="pc-led"></span><b>UPS</b><small>Catu daya alat dan komputer</small><button id="ups-power" class="unit-power" aria-label="Nyalakan UPS" aria-pressed="false" title="Daya UPS">⏻</button><span class="unit-state" id="ups-state">Mati</span></div>
-        <div class="pc-unit pcu" id="pcu-unit"><span class="pc-led"></span><b>UPC</b><small>Komputer dan monitor</small><button id="pcu-power" class="unit-power" aria-label="Nyalakan CPU" aria-pressed="false" title="Daya UPC">⏻</button><span class="unit-state" id="pcu-state">Mati</span></div>
+        <div class="pc-unit pcu" id="pcu-unit"><span class="pc-led"></span><b>CPU</b><small>Komputer dan monitor</small><button id="pcu-power" class="unit-power" aria-label="Nyalakan CPU" aria-pressed="false" title="Daya CPU">⏻</button><span class="unit-state" id="pcu-state">Mati</span></div>
       </section>
 
       <section class="computer-section" aria-label="Komputer dan perangkat lunak simulasi">
@@ -87,7 +87,7 @@
             <div class="monitor-screen" id="screen">
               <div class="software-launch" id="software-launch"><button id="open-software">▶ Buka Cary WinUV</button><small>Komputer aktif · software belum dijalankan</small></div>
                             <div class="software" id="software">
-                <div class="software-top"><div class="software-name"><span class="app-symbol">◫</span><span>UV–Vis Studio<small>SIMULASI · CARY 100</small></span></div><div class="software-top-actions"><span class="connection" id="connection"><span></span>Alat mati</span><button id="close-software" class="close-software" aria-label="Tutup perangkat lunak" title="Tutup aplikasi sebelum mematikan UPC">×</button></div></div>
+                <div class="software-top"><div class="software-name"><span class="app-symbol">◫</span><span>UV–Vis Studio<small>SIMULASI · CARY 100</small></span></div><div class="software-top-actions"><span class="connection" id="connection"><span></span>Alat mati</span><button id="close-software" class="close-software" aria-label="Tutup perangkat lunak" title="Tutup aplikasi sebelum mematikan CPU">×</button></div></div>
                 <div class="software-tabs" role="tablist" aria-label="Halaman perangkat lunak">
                   <button role="tab" id="tab-scan" aria-controls="panel-scan" aria-selected="true" data-tab="scan">Spektrum</button>
                   <button role="tab" id="tab-cal" aria-controls="panel-cal" aria-selected="false" data-tab="cal">Kurva kalibrasi</button>
@@ -104,7 +104,7 @@
                       <div class="weight-panel weight-entry" id="abs-entry" hidden><label for="manual-abs">Abs input manual</label><input id="manual-abs" type="text" inputmode="decimal" autocomplete="off" placeholder="Kosong = data asli" aria-describedby="manual-abs-info"><small id="manual-abs-info">Opsional untuk sampel data praktikum. Sampel tambahan wajib diisi.</small></div>
                       <div class="run-controls" id="run-controls" hidden><button class="secondary-button" id="zero-button">01 · Zero blanko</button><button class="primary-button" id="scan-button">02 · START ukur <span aria-hidden="true">↗</span></button></div>
                       <div class="operation-progress" id="operation-progress" hidden><div><strong id="progress-title">Progres alat</strong><span id="progress-value">0%</span></div><p id="progress-phase">Menunggu alat…</p><div class="progress-track" id="progress-meter" role="progressbar" aria-label="Progres kerja alat" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="progress-fill"></i></div></div>
-                      <p class="inline-message" id="screen-status" role="status">Nyalakan UPS → alat → UPC, lalu buka software dan ketik λ praktikum.</p>
+                      <p class="inline-message" id="screen-status" role="status">Nyalakan UPS → alat → CPU, lalu buka software dan ketik λ praktikum.</p>
                     </div>
                     <div class="screen-summary"><div><span class="micro-label">HASIL DI LAYAR</span><strong id="active-solution">Aquades</strong><small id="sample-weight-readout" class="sample-meta" hidden></small><small id="result-origin" class="sample-meta" hidden></small></div><div class="readout"><span class="micro-label"><span id="readout-caption">PADA λ</span> <span id="readout-nm">246,5</span> nm</span><strong id="readout-value">—</strong><small id="readout-unit">Abs</small></div></div>
                     <div class="chart-card">
@@ -133,14 +133,14 @@
                   <div class="formula-bar" id="formula-bar" hidden aria-live="polite"></div>
                 </div>
               </div>
-              <div class="monitor-off" id="monitor-off" hidden><span>○</span><p>Komputer mati</p><small>Nyalakan UPS, alat, lalu UPC</small></div>
+              <div class="monitor-off" id="monitor-off" hidden><span>○</span><p>Komputer mati</p><small>Nyalakan UPS, alat, lalu CPU</small></div>
             </div>
             <div class="monitor-chin"><span class="monitor-mark">UV–VIS WORKSTATION</span><span class="monitor-led off" id="monitor-led"></span></div>
           </div>
           <div class="monitor-neck"></div><div class="monitor-foot"></div>
         </div>
-        <div class="under-monitor"><span class="cable-mark"><i></i> Terhubung lewat port belakang instrumen</span><details class="help"><summary>Panduan singkat</summary><p>Nyalakan <b>UPS → alat → UPC</b>, lalu buka software. Ketik <b>246,5 nm</b> untuk Standar/Sampel 1 atau <b>248,0 nm</b> untuk Standar/Sampel 2, lalu tekan <b>Terapkan λ</b>; seri dipilih otomatis tanpa memilih larutan lebih dulu. Untuk mengganti λ, klik <b>Atur / ganti λ</b>, ketik angka lain dari kedua seri, lalu <b>Zero blanko</b> ulang. Pasang standar 0 ppm atau sampel, tekan <b>Zero blanko</b> (aquades menjadi referensi), lalu <b>START ukur</b>. Deret standar terpasang berurutan; lihat kurva pada tab <b>Kurva kalibrasi</b>. Sampel sendiri dapat ditambahkan di baki kiri. Isi bobot positif dan, jika perlu, Abs manual di komputer; Abs manual wajib untuk sampel sendiri. Input manual menjadi titik acuan kurva ilustratif dan diberi label dalam riwayat. Progres sumber cahaya → monokromator → kuvet → detektor terlihat selama pembacaan. Selesai praktik: catat log book, tutup software, shutdown UPC, matikan alat, lalu UPS. Penyiapan larutan dan pembilasan kuvet dilakukan di laboratorium nyata.</p></details></div>
-        <p class="power-status" id="power-status" role="status">Urutan daya: UPS → alat → UPC.</p>
+        <div class="under-monitor"><span class="cable-mark"><i></i> Terhubung lewat port belakang instrumen</span><details class="help"><summary>Panduan singkat</summary><p>Nyalakan <b>UPS → alat → CPU</b>, lalu buka software. Ketik <b>246,5 nm</b> untuk Standar/Sampel 1 atau <b>248,0 nm</b> untuk Standar/Sampel 2, lalu tekan <b>Terapkan λ</b>; seri dipilih otomatis tanpa memilih larutan lebih dulu. Untuk mengganti λ, klik <b>Atur / ganti λ</b>, ketik angka lain dari kedua seri, lalu <b>Zero blanko</b> ulang. Pasang standar 0 ppm atau sampel, tekan <b>Zero blanko</b> (aquades menjadi referensi), lalu <b>START ukur</b>. Deret standar terpasang berurutan; lihat kurva pada tab <b>Kurva kalibrasi</b>. Sampel sendiri dapat ditambahkan di baki kiri. Isi bobot positif dan, jika perlu, Abs manual di komputer; Abs manual wajib untuk sampel sendiri. Input manual menjadi titik acuan kurva ilustratif dan diberi label dalam riwayat. Progres sumber cahaya → monokromator → kuvet → detektor terlihat selama pembacaan. Selesai praktik: catat log book, tutup software, shutdown CPU, matikan alat, lalu UPS. Penyiapan larutan dan pembilasan kuvet dilakukan di laboratorium nyata.</p></details></div>
+        <p class="power-status" id="power-status" role="status">Urutan daya: UPS → alat → CPU.</p>
       </section>
     </div>
 

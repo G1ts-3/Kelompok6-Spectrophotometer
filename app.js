@@ -171,7 +171,7 @@
       'Ketik 246,5 nm (Standar/Sampel 1) atau 248,0 nm (Standar/Sampel 2). Software memilih seri yang sesuai; tidak perlu memilih larutan lebih dulu.':
       `λ ${formatPeak(state.confirmedPeaks[core.datasetKey])} nm · blanko aquades · deret standar 0–25 mg/L · sampel Presisi 1–5 dan Akurasi.`;
     $('lambda-entry').hidden=!finding;
-    $('lambda-input').placeholder=formatPeak(core.peakNm);
+    $('lambda-input').placeholder='Contoh: '+formatPeak(core.peakNm);
     $('lambda-input').disabled=!ready || busy();
     $('apply-lambda').disabled=!ready || busy();
     $('lambda-hint').textContent='246,5 nm → Standar/Sampel 1 · 248,0 nm → Standar/Sampel 2. Seri berganti otomatis; kedua angka berasal dari data praktikum.';
@@ -646,7 +646,7 @@
       const data=core.datasets[key];
       button.setAttribute('aria-pressed','false');button.title=`Pasang kuvet ${s.name} di ${place}${data?` · ${data.label}, λmaks ${formatPeak(data.peakNm)} nm`:''}`;
       const vessel=document.createElement('span');vessel.className='cuvette-icon';vessel.style.setProperty('--fluid',s.color);vessel.setAttribute('aria-hidden','true');
-      button.append(vessel,document.createTextNode(s.name));
+      button.append(vessel,document.createTextNode(s.family==='standar'?`${s.ppm} ppm (mg/L)`:s.name));
       if (s.family==='sampel') {
         const index=core.samples.indexOf(s), mass=document.createElement('small');
         mass.textContent=s.custom?(s.weight>0?`${formatWeight(s.weight)} g`:'isi bobot'):`${data.weights[index].toFixed(4).replace('.',',')} g`;
@@ -660,7 +660,7 @@
         const block=document.createElement('div');block.className='series-block';block.dataset.series=key;
         const heading=document.createElement('div');heading.className='series-heading';
         const title=document.createElement('strong');title.textContent=core.datasets[key].series+(family==='sampel'?` · ${core.datasets[key].sampleMass}`:'');
-        const source=document.createElement('small');source.textContent=`${family==='standar'?'Standar':'Sampel'} ${key==='praktikum'?'1':'2'}`;
+        const source=document.createElement('small');source.textContent=`${family==='standar'?'Standar':'Sampel'} ${key==='praktikum'?'1':'2'}${family==='standar'?' ':''}`;
         heading.append(title,source);
         const row=document.createElement('div');row.className='solution-row';
         for (const s of family==='standar'?core.standards:core.samples) addButton(s,row,key);
@@ -746,7 +746,7 @@
     for(const level of [0,yMax/4,yMax/2,yMax*3/4]) svg+=`<line x1="46" y1="${y(level)}" x2="404" y2="${y(level)}" stroke="#e7eff2"/><text x="40" y="${y(level)+3}" text-anchor="end" font-size="9" fill="#9cb1ba">${level.toFixed(1)}</text>`;
     svg+='<line x1="46" y1="162" x2="404" y2="162" stroke="#adc8d3"/>';
     for(const ppm of [0,5,10,15,20,25]) svg+=`<text x="${x(ppm)}" y="177" text-anchor="middle" font-size="9" fill="#91aab5">${ppm}</text>`;
-    svg+='<text x="225" y="194" text-anchor="middle" font-size="10" fill="#6f8b99">Konsentrasi tiamin (ppm)</text><text transform="translate(11 92) rotate(-90)" text-anchor="middle" font-size="10" fill="#6f8b99">Absorbansi (A)</text>';
+    svg+='<text x="225" y="194" text-anchor="middle" font-size="10" fill="#6f8b99">Konsentrasi tiamin, ppm (mg/L)</text><text transform="translate(11 92) rotate(-90)" text-anchor="middle" font-size="10" fill="#6f8b99">Absorbansi (A)</text>';
     if(fit) svg+=`<path d="M${x(0)},${y(fit.intercept)} L${x(25)},${y(fit.intercept+25*fit.slope)}" stroke="#62a9c1" stroke-width="2.5" fill="none"/>`;
     for(const p of measured) svg+=`<circle cx="${x(p.ppm)}" cy="${y(p.abs)}" r="5" fill="#247d99" stroke="white" stroke-width="2"/>`;
     if(fit && measured.length) {
@@ -766,7 +766,7 @@
     if(fit) {
       message=`A = ${fit.slope.toFixed(4)} × C + ${fit.intercept.toFixed(4)} · R² ${fit.r2.toFixed(4)}`;
       const smp=state.history.find(r=>r.dataset===core.datasetKey && getSolution(r.solutionId).family==='sampel' && r.absPeak!=null);
-      if(smp) message+=` · ${smp.name} ≈ ${Math.max(0,(smp.absPeak-fit.intercept)/fit.slope).toFixed(2)} ppm`;
+      if(smp) message+=` · ${smp.name} ≈ ${Math.max(0,(smp.absPeak-fit.intercept)/fit.slope).toFixed(2)} ppm (mg/L)`;
     }
     $('cal-result').textContent=message;
     drawSampleResults();

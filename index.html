@@ -15,15 +15,69 @@
   <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.1.0/dist/model-viewer.min.js"></script>
   <script defer src="sim-core.js"></script>
   <script defer src="app.js"></script>
+  <script defer src="intro.js"></script>
 </head>
 <body>
+  <div class="welcome" id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+    <div class="welcome-card">
+      <span class="welcome-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M10 29h20M14 25l9-14 4 3-9 14M12 30c0-5 4-8 9-8M18 10l4-5 7 5-4 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <p class="eyebrow">SPEKTROFOTOMETER · UV–VIS · CARY 100</p>
+      <h1 id="welcome-title">Selamat datang di UV–Vis Lab</h1>
+      <p class="welcome-copy">Simulasi interaktif spektrofotometer UV–Vis. Putar model 3D, ganti kuvet, nyalakan alat, lalu amati spektrum dan kurva kalibrasi di komputer.</p>
+      <ul class="welcome-points">
+        <li><b>1</b> Nyalakan UPS, alat, lalu CPU</li>
+        <li><b>2</b> Atur λ dan Zero blanko</li>
+        <li><b>3</b> Ukur standar dan sampel</li>
+      </ul>
+      <button type="button" class="welcome-start" id="welcome-start">Mulai ▸</button>
+      <button type="button" class="welcome-guide" id="welcome-guide">Lihat langkah penggunaan</button>
+      <small>Tombol <b>⋮</b> di kanan atas halaman membuka langkah penggunaan kapan saja.</small>
+    </div>
+  </div>
   <header class="site-header">
     <a class="brand" href="#atas" aria-label="UV–Vis Lab, kembali ke atas">
       <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M10 29h20M14 25l9-14 4 3-9 14M12 30c0-5 4-8 9-8M18 10l4-5 7 5-4 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <span><strong>UV–Vis Lab</strong><small>Ruang eksplorasi</small></span>
     </a>
-    <span class="header-tag"><span class="live-dot"></span> Model interaktif</span>
+    <div class="header-actions"><span class="header-tag"><span class="live-dot"></span> Model interaktif</span><button type="button" class="menu-dots" id="menu-dots" aria-label="Langkah penggunaan" aria-haspopup="dialog" aria-expanded="false" aria-controls="usage-panel" title="Langkah penggunaan"><span aria-hidden="true">⋮</span></button></div>
   </header>
+  <aside class="usage-panel" id="usage-panel" role="dialog" aria-labelledby="usage-title" hidden>
+    <div class="usage-head"><div><p class="eyebrow">PANDUAN</p><h2 id="usage-title">Langkah penggunaan</h2></div><button type="button" class="usage-close" id="usage-close" aria-label="Tutup langkah penggunaan">×</button></div>
+    <div class="usage-body">
+      <h3>A. Persiapan</h3>
+      <ol>
+        <li>Siapkan kebutuhan analisis: larutan blanko (aquades), standar, dan sampel.</li>
+        <li>Hubungkan kabel power ke sumber listrik (pada simulasi, kabel sudah tersambung di belakang alat).</li>
+        <li>Nyalakan <b>UPS</b> dengan menekan tombol ⏻ UPS.</li>
+        <li>Nyalakan <b>alat Cary 100</b> dengan tombol daya pada alat.</li>
+        <li>Nyalakan <b>CPU</b> komputer dan monitor. Urutan daya: UPS → alat → CPU.</li>
+      </ol>
+      <h3>B. Mencari panjang gelombang maks (Scan)</h3>
+      <ol start="6">
+        <li>Klik <b>▶ Buka Cary WinUV</b> pada monitor dan tunggu hingga alat berstatus online.</li>
+        <li>Ketik λ pada kolom panjang gelombang: <b>246,5 nm</b> (Standar/Sampel 1) atau <b>248,0 nm</b> (Standar/Sampel 2), lalu klik <b>Terapkan λ</b>.</li>
+        <li>Isi kedua kuvet dengan blanko aquades (kuvet merah di belakang), lalu klik <b>01 · Zero blanko</b>.</li>
+        <li>Ganti kuvet depan (abu) dengan salah satu standar dari baki <b>Ganti kuvet</b>, lalu klik <b>02 · START ukur</b>.</li>
+        <li>Tunggu proses scanning selesai. Spektrum dan puncak serapan tampil pada tab <b>Spektrum</b>.</li>
+      </ol>
+      <h3>C. Konsentrasi (kurva kalibrasi dan sampel)</h3>
+      <ol start="11">
+        <li>Ukur deret standar <b>0, 5, 10, 15, 20, 25 ppm (mg/L)</b> satu per satu dengan Zero blanko lalu START ukur.</li>
+        <li>Buka tab <b>Kurva kalibrasi</b>. Pastikan regresi linear memenuhi <b>R² ≥ 0,9500</b>.</li>
+        <li>Pasang sampel, isi bobot sampel (g), lalu klik <b>START ukur</b> untuk memperoleh konsentrasi.</li>
+        <li>Lihat semua hasil pada tab <b>Riwayat</b>.</li>
+      </ol>
+      <h3>D. Mematikan alat</h3>
+      <ol start="15">
+        <li>Catat kejadian pada log book alat dan tanda tangani dengan nama jelas.</li>
+        <li>Tutup software (tombol × pada jendela), lalu matikan komputer (shutdown CPU).</li>
+        <li>Matikan alat Cary 100, kemudian matikan UPS. Urutan: CPU → alat → UPS.</li>
+        <li>Lepaskan kabel dari sumber listrik kecuali kabel UPS, rapikan area kerja dan kursi.</li>
+        <li>Keringkan kuvet (kuarsa dan kaca) dengan membilas etanol lalu aseton, balikkan pada posisi aman hingga kering sempurna.</li>
+      </ol>
+      <p class="usage-tip">Tip: klik <b>Kenali bagian ⓘ</b> pada model 3D untuk mengenal tiap bagian alat.</p>
+    </div>
+  </aside>
 
   <main id="atas" class="page-shell">
     <div class="page-heading">
@@ -119,7 +173,7 @@
                     </div>
                   </section>
                   <section id="panel-cal" role="tabpanel" class="software-panel" hidden>
-                    <div class="tab-intro"><strong>Kurva Kalibrasi Deret Standar Thiamin</strong><p id="cal-series" class="cal-series">Seri 246,5 nm · Standar/Sampel 1</p><p>Scan standar 0 sampai 25 ppm dari satu seri. Kurva hanya memuat hasil seri aktif.</p></div>
+                    <div class="tab-intro"><strong>Kurva Kalibrasi Deret Standar Thiamin</strong><p id="cal-series" class="cal-series">Seri 246,5 nm · Standar/Sampel 1</p><p>Scan standar 0 sampai 25 ppm (mg/L) dari satu seri. Kurva hanya memuat hasil seri aktif.</p></div>
                     <div class="cal-chart"><svg id="calibration-chart" viewBox="0 0 420 200" role="img" aria-label="Kurva kalibrasi standar"></svg></div>
                     <div id="cal-points" class="cal-points"></div>
                     <p class="cal-result" id="cal-result">Ukur setidaknya tiga standar untuk membuat garis kalibrasi.</p>

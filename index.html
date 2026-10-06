@@ -26,7 +26,7 @@
       <p class="welcome-copy">Simulasi interaktif spektrofotometer UV–Vis. Putar model 3D, ganti kuvet, nyalakan alat, lalu amati spektrum dan kurva kalibrasi di komputer.</p>
       <ul class="welcome-points">
         <li><b>1</b> Nyalakan UPS, alat, lalu CPU</li>
-        <li><b>2</b> Atur λ dan Zero blanko</li>
+        <li><b>2</b> Pilih seri, cari λmaks, Zero blanko</li>
         <li><b>3</b> Ukur standar dan sampel</li>
       </ul>
       <button type="button" class="welcome-start" id="welcome-start">Mulai ▸</button>
@@ -55,7 +55,7 @@
       <h3>B. Mencari panjang gelombang maks (Scan)</h3>
       <ol start="6">
         <li>Klik <b>▶ Buka Cary WinUV</b> pada monitor dan tunggu hingga alat berstatus online.</li>
-        <li>Ketik λ pada kolom panjang gelombang: <b>246,5 nm</b> (Standar/Sampel 1) atau <b>248,0 nm</b> (Standar/Sampel 2), lalu klik <b>Terapkan λ</b>.</li>
+        <li>Pilih <b>Seri 1</b> atau <b>Seri 2</b> pada layar monitor, lalu klik <b>START scan λmaks</b>. Kurva Abs terhadap panjang gelombang digambar; puncaknya menjadi λmaks (seri 1 otomatis 246,5 nm, seri 2 248,0 nm).</li>
         <li>Isi kedua kuvet dengan blanko aquades (kuvet merah di belakang), lalu klik <b>01 · Zero blanko</b>.</li>
         <li>Ganti kuvet depan (abu) dengan salah satu standar dari baki <b>Ganti kuvet</b>, lalu klik <b>02 · START ukur</b>.</li>
         <li>Tunggu proses scanning selesai. Spektrum dan puncak serapan tampil pada tab <b>Spektrum</b>.</li>
@@ -91,29 +91,21 @@
       <div class="tray-group"><span class="group-label">BLANKO</span><div id="blank-solutions" class="solution-row"></div></div>
       <div class="tray-group"><span class="group-label">DERET STANDAR </span><div id="standard-solutions" class="series-list"></div></div>
       <div class="tray-group"><span class="group-label">DERET SAMPEL </span><div id="sample-solutions" class="series-list"></div></div>
-      <form id="custom-sample-form" class="custom-sample-form">
-        <strong>Tambah sampel sendiri</strong>
-        <label for="custom-sample-series">Seri data</label>
-        <select id="custom-sample-series"><option value="praktikum">Standar/Sampel 1 · 246,5 nm</option><option value="jena">Standar/Sampel 2 · 248,0 nm</option></select>
-        <label for="custom-sample-name">Nama sampel</label>
-        <div><input id="custom-sample-name" type="text" maxlength="40" autocomplete="off" placeholder="Contoh: Sampel A"><button type="submit">+ Tambah</button></div>
-        <small id="custom-sample-feedback" role="status">Setelah ditambahkan, isi bobot dan Abs pada software komputer.</small>
-      </form>
     </section>
       <section class="instrument-section" aria-label="Model instrumen interaktif">
         <div class="stage" id="stage">
           <div class="stage-top"><span class="stage-label">INSTRUMEN <b>01</b> / CARY 100</span><span class="stage-hint">Seret untuk memutar · scroll untuk zoom</span></div>
           <model-viewer id="instrument" src="spectrophotometer.glb" alt="Model tiga dimensi instrumen spektrofotometer UV–Vis dengan dua kuvet berbaris depan-belakang dan tutup ruang sampel" camera-controls touch-action="pan-y" interaction-prompt="none" camera-orbit="180deg 65deg 1.7m" camera-target="0m 0.17m 0m" min-camera-orbit="auto 0deg 0.25m" max-camera-orbit="auto 90deg auto" min-field-of-view="18deg" max-field-of-view="58deg" field-of-view="30deg" shadow-intensity="1" shadow-softness=".8" exposure=".95" tone-mapping="neutral">
-            <button class="hotspot" slot="hotspot-1" data-position="-0.324m 0.288m -0.027m" data-normal="0m 1m 0m" data-part="0" aria-label="Sumber cahaya di sisi kanan">1</button>
-            <button class="hotspot" slot="hotspot-2" data-position="-0.259m 0.288m -0.027m" data-normal="0m 1m 0m" data-part="1" aria-label="Monokromator">2</button>
+            <button class="hotspot" slot="hotspot-1" data-position="-0.008m 0.288m -0.027m" data-normal="0m 1m 0m" data-part="0" aria-label="Sumber cahaya di sisi kiri">1</button>
+            <button class="hotspot" slot="hotspot-2" data-position="-0.073m 0.288m -0.027m" data-normal="0m 1m 0m" data-part="1" aria-label="Monokromator">2</button>
             <button class="hotspot" slot="hotspot-3" data-position="-0.166m 0.325m 0.053m" data-normal="0m 1m 0m" data-part="2" aria-label="Kuvet blanko (belakang)">3</button>
             <button class="hotspot" slot="hotspot-4" data-position="-0.166m 0.305m -0.107m" data-normal="0m 1m 0m" data-part="3" aria-label="Kuvet sampel (depan)">4</button>
-            <button class="hotspot" slot="hotspot-5" data-position="-0.012m 0.285m -0.027m" data-normal="0m 1m 0m" data-part="4" aria-label="Detektor di sisi kiri">5</button>
+            <button class="hotspot" slot="hotspot-5" data-position="-0.320m 0.285m -0.027m" data-normal="0m 1m 0m" data-part="4" aria-label="Detektor di sisi kanan">5</button>
             <button class="hotspot" slot="hotspot-6" data-position="-0.166m 0.21m -0.212m" data-normal="0m 0m -1m" data-part="5" aria-label="Penutup sampel">6</button>
             <button class="hotspot" slot="hotspot-7" data-position="0.496m 0.078m -0.45m" data-normal="0m 0m -1m" data-part="6" aria-label="Tombol daya">7</button>
           </model-viewer>
           <div class="scan-hud" id="scan-hud" hidden role="status"><span class="hud-dot"></span><b id="hud-title">Scanning</b><span id="hud-nm">200 nm</span><i><em id="hud-bar"></em></i></div>
-          <div class="scan-optics" aria-hidden="true"><span>SATU PANJANG GELOMBANG · DUA JALUR</span><i></i><small>Kanan: sumber → monokromator (prisma) → celah hitam (slit) → pembagi berkas</small><small>Dua kuvet (blanko &amp; sampel) → detektor di kiri</small></div>
+          <div class="scan-optics" aria-hidden="true"><span>SATU PANJANG GELOMBANG · DUA JALUR</span><i></i><small>Kiri: sumber → monokromator (prisma) → celah hitam (slit) → pembagi berkas</small><small>Dua kuvet (blanko &amp; sampel) → detektor di kanan</small></div>
           <div class="part-card" id="part-card" hidden><button id="close-part" aria-label="Tutup penjelasan">×</button><span id="part-number"></span><strong id="part-title"></strong><p id="part-copy"></p></div>
           <div class="stage-bottom">
             <div class="stage-actions">
@@ -126,7 +118,7 @@
         </div>
         <div class="flow-strip" aria-label="Jalur cahaya dalam instrumen">
           <span class="flow-caption">DI DALAM ALAT</span>
-          <span>Sumber cahaya (kanan)</span><i aria-hidden="true"></i><span>Monokromator (prisma + celah)</span><i aria-hidden="true"></i><span>Blanko + sampel</span><i aria-hidden="true"></i><span>Detektor (kiri)</span>
+          <span>Sumber cahaya (kiri)</span><i aria-hidden="true"></i><span>Monokromator (prisma + celah)</span><i aria-hidden="true"></i><span>Blanko + sampel</span><i aria-hidden="true"></i><span>Detektor (kanan)</span>
         </div>
       </section>
 
@@ -149,16 +141,16 @@
                 </div>
                 <div class="software-scroll">
                   <section id="panel-scan" role="tabpanel" aria-labelledby="tab-scan" class="software-panel">
-                    <div class="workflow-switch" role="group" aria-label="Metode perangkat lunak"><button id="workflow-lambda" aria-pressed="true">1 · Atur / ganti λ</button><button id="workflow-concentration" aria-pressed="false" disabled>2 · Pengukuran</button></div>
-                    <p class="workflow-setup" id="workflow-setup">Masukkan λ sesuai data praktikum, lalu ukur standar dan sampel.</p>
+                    <div class="workflow-switch" role="group" aria-label="Metode perangkat lunak"><button id="workflow-lambda" aria-pressed="true">1 · Cari λmaks</button><button id="workflow-concentration" aria-pressed="false" disabled>2 · Pengukuran</button></div>
+                    <p class="workflow-setup" id="workflow-setup">Cari λmaks dari puncak kurva, lalu ukur standar dan sampel.</p>
                     <div class="scan-action-dock">
-                      <div class="next-step" role="status"><span><small>LANGKAH BERIKUTNYA</small><strong id="next-instruction">Masukkan λ sesuai seri praktikum.</strong></span></div>
-                      <div class="lambda-entry" id="lambda-entry"><label for="lambda-input">Panjang gelombang λ (nm)</label><div><input id="lambda-input" type="text" inputmode="decimal" autocomplete="off" placeholder="246,5" aria-describedby="lambda-hint"><button id="apply-lambda" class="primary-button" type="button">Terapkan λ</button></div><small id="lambda-hint">Ketik 246,5 atau 248,0 nm. Seri data akan dipilih otomatis.</small></div>
+                      <div class="next-step" role="status"><span><small>LANGKAH BERIKUTNYA</small><strong id="next-instruction">Pilih seri 1 atau 2.</strong></span></div>
+                      <div class="lambda-entry" id="lambda-entry"><label>Cari panjang gelombang maksimum (λmaks)</label><div><button id="scan-lambda" class="primary-button" type="button">START scan λmaks <span aria-hidden="true">↗</span></button></div><small id="lambda-hint">Sumbu X panjang gelombang (nm), sumbu Y absorbansi. Puncak kurva = λmaks.</small></div>
                       <div class="weight-panel weight-entry" id="weight-panel" hidden><label for="sample-weight">Bobot sampel (g)</label><input id="sample-weight" type="text" inputmode="decimal" autocomplete="off" aria-describedby="weight-info"><small id="weight-info"></small></div>
                       <div class="weight-panel weight-entry" id="abs-entry" hidden><label for="manual-abs">Abs input manual</label><input id="manual-abs" type="text" inputmode="decimal" autocomplete="off" placeholder="Kosong = data asli" aria-describedby="manual-abs-info"><small id="manual-abs-info">Opsional untuk sampel data praktikum. Sampel tambahan wajib diisi.</small></div>
                       <div class="run-controls" id="run-controls" hidden><button class="secondary-button" id="zero-button">01 · Zero blanko</button><button class="primary-button" id="scan-button">02 · START ukur <span aria-hidden="true">↗</span></button></div>
                       <div class="operation-progress" id="operation-progress" hidden><div><strong id="progress-title">Progres alat</strong><span id="progress-value">0%</span></div><p id="progress-phase">Menunggu alat…</p><div class="progress-track" id="progress-meter" role="progressbar" aria-label="Progres kerja alat" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="progress-fill"></i></div></div>
-                      <p class="inline-message" id="screen-status" role="status">Nyalakan UPS → alat → CPU, lalu buka software dan ketik λ praktikum.</p>
+                      <p class="inline-message" id="screen-status" role="status">Nyalakan UPS → alat → CPU, lalu buka software dan pilih seri 1 atau 2.</p>
                     </div>
                     <div class="screen-summary"><div><span class="micro-label">HASIL DI LAYAR</span><strong id="active-solution">Aquades</strong><small id="sample-weight-readout" class="sample-meta" hidden></small><small id="result-origin" class="sample-meta" hidden></small></div><div class="readout"><span class="micro-label"><span id="readout-caption">PADA λ</span> <span id="readout-nm">246,5</span> nm</span><strong id="readout-value">—</strong><small id="readout-unit">Abs</small></div></div>
                     <div class="chart-card">
@@ -187,13 +179,14 @@
                   <div class="formula-bar" id="formula-bar" hidden aria-live="polite"></div>
                 </div>
               </div>
+              <div class="series-chooser" id="series-chooser" hidden><p class="eyebrow">LANGKAH 1 · PILIH SERI</p><h3>Jalankan seri yang mana?</h3><p>Panjang gelombang maksimum (λmaks) tidak diketik; ia dicari dari puncak kurva saat scan.</p><div class="series-options"><button type="button" class="series-option" data-series="praktikum"><b>Seri 1</b><small>Standar/Sampel 1</small></button><button type="button" class="series-option" data-series="jena"><b>Seri 2</b><small>Standar/Sampel 2</small></button></div><button type="button" class="chooser-close" id="chooser-close">× Tutup software</button></div>
               <div class="monitor-off" id="monitor-off" hidden><span>○</span><p>Komputer mati</p><small>Nyalakan UPS, alat, lalu CPU</small></div>
             </div>
             <div class="monitor-chin"><span class="monitor-mark">UV–VIS WORKSTATION</span><span class="monitor-led off" id="monitor-led"></span></div>
           </div>
           <div class="monitor-neck"></div><div class="monitor-foot"></div>
         </div>
-        <div class="under-monitor"><span class="cable-mark"><i></i> Terhubung lewat port belakang instrumen</span><details class="help"><summary>Panduan singkat</summary><p>Nyalakan <b>UPS → alat → CPU</b>, lalu buka software. Ketik <b>246,5 nm</b> untuk Standar/Sampel 1 atau <b>248,0 nm</b> untuk Standar/Sampel 2, lalu tekan <b>Terapkan λ</b>; seri dipilih otomatis tanpa memilih larutan lebih dulu. Untuk mengganti λ, klik <b>Atur / ganti λ</b>, ketik angka lain dari kedua seri, lalu <b>Zero blanko</b> ulang. Pasang standar 0 ppm atau sampel, tekan <b>Zero blanko</b> (aquades menjadi referensi), lalu <b>START ukur</b>. Deret standar terpasang berurutan; lihat kurva pada tab <b>Kurva kalibrasi</b>. Sampel sendiri dapat ditambahkan di baki kiri. Isi bobot positif dan, jika perlu, Abs manual di komputer; Abs manual wajib untuk sampel sendiri. Input manual menjadi titik acuan kurva ilustratif dan diberi label dalam riwayat. Progres sumber cahaya → monokromator → kuvet → detektor terlihat selama pembacaan. Selesai praktik: catat log book, tutup software, shutdown CPU, matikan alat, lalu UPS. Penyiapan larutan dan pembilasan kuvet dilakukan di laboratorium nyata.</p></details></div>
+        <div class="under-monitor"><span class="cable-mark"><i></i> Terhubung lewat port belakang instrumen</span><details class="help"><summary>Panduan singkat</summary><p>Nyalakan <b>UPS → alat → CPU</b>, lalu buka software. Pilih <b>Seri 1</b> atau <b>Seri 2</b> pada layar monitor, lalu tekan <b>START scan λmaks</b>: kurva Abs terhadap panjang gelombang digambar dan puncaknya menjadi λmaks (seri 1 otomatis 246,5 nm, seri 2 248,0 nm). Untuk mengulang atau berpindah seri, klik <b>Cari λmaks</b> lalu <b>Zero blanko</b> ulang. Pasang standar 0 ppm atau sampel, tekan <b>Zero blanko</b> (aquades menjadi referensi), lalu <b>START ukur</b>. Deret standar terpasang berurutan; lihat kurva pada tab <b>Kurva kalibrasi</b>. Bobot sampel dapat diubah dan Abs manual bersifat opsional di komputer; input manual menjadi titik acuan kurva ilustratif dan diberi label dalam riwayat. Progres sumber cahaya → monokromator → kuvet → detektor terlihat selama pembacaan. Selesai praktik: catat log book, tutup software, shutdown CPU, matikan alat, lalu UPS. Penyiapan larutan dan pembilasan kuvet dilakukan di laboratorium nyata.</p></details></div>
         <p class="power-status" id="power-status" role="status">Urutan daya: UPS → alat → CPU.</p>
       </section>
     </div>

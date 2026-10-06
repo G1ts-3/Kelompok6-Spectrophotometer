@@ -316,3 +316,28 @@
 
 /* Placeholder harus terlihat kosong, bukan seperti nilai yang sudah terisi. */
 .lambda-entry input::placeholder,.weight-entry input::placeholder{color:#a3b8c2;font-weight:400;font-style:italic;opacity:1}
+
+/* Pilihan seri 1/2 sebelum tampilan software; λmaks dicari lewat scan, bukan diketik. */
+.series-chooser{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px 22px;text-align:center;background:#eef6f8}
+.series-chooser .eyebrow{margin:0}
+.series-chooser h3{margin:0;font-size:20px;letter-spacing:-.04em;font-weight:600;color:#1f4a60}
+.series-chooser p:not(.eyebrow){margin:0;max-width:300px;color:#6d8997;font-size:12px;line-height:1.5}
+.series-options{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:320px;margin-top:6px}
+.series-option{display:grid;gap:4px;padding:18px 8px;border:1px solid #b9d8e3;border-radius:14px;background:#fff;color:#245d76;box-shadow:0 6px 16px #5092a51f;transition:transform .2s,border-color .2s,background .2s}
+.series-option b{font-size:18px;letter-spacing:-.03em}
+.series-option small{font:500 10px var(--mono);color:#6d8997}
+.series-option:not(:disabled):hover{transform:translateY(-2px);border-color:#6daabd;background:#e8f5f8}
+.chooser-close{margin-top:8px;border:0;background:none;color:#647f8e;font-size:11px;text-decoration:underline;text-underline-offset:3px}
+.lambda-entry #scan-lambda{flex:1;min-height:36px;border-radius:7px;font-size:11px;font-weight:700}
+.lambda-entry #scan-lambda:not(:disabled){background:#2f9b79;border-color:#2f9b79;box-shadow:0 4px 10px #2f9b7933}
+
+/* Ringkasan "HASIL DI LAYAR": nama larutan di atas selebar panel, pembacaan di bawahnya.
+   Sebelumnya pembacaan nowrap memeras kolom nama sehingga teks terpotong ("St…") dan terpecah per kata. */
+.screen-summary{flex-wrap:wrap;align-items:stretch;gap:10px}
+.screen-summary>div:first-child{flex:1 1 100%}
+.screen-summary>div:first-child .micro-label{display:block}
+.screen-summary>div:first-child strong{white-space:normal;overflow-wrap:anywhere}
+.screen-summary .sample-meta{overflow-wrap:anywhere}
+.screen-summary .readout{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;padding:10px 12px;border:1px solid #dce9ef;border-radius:11px;background:#fff;text-align:left;white-space:normal}
+.screen-summary .readout .micro-label{flex:1 1 100%;display:block;margin-bottom:4px}
+.screen-summary .readout strong{margin:0}

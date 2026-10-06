@@ -9,11 +9,11 @@
   const customSamples = loadCustomSamples();
   core.solutions.push(...customSamples);
   const parts = [
-    ['Sumber cahaya','Lampu menyediakan cahaya sebelum panjang gelombang dipilih; posisinya di sisi kanan jalur optik.','150deg 53deg .80m','-.324m .25m -.027m'],
-    ['Monokromator','Pemisahan spektrum berlangsung di dalam komponen ini. Hanya satu panjang gelombang terpilih yang terbagi ke kedua kuvet, dari kanan ke kiri.','200deg 42deg .55m','-.259m .25m -.027m'],
+    ['Sumber cahaya','Lampu menyediakan cahaya sebelum panjang gelombang dipilih; posisinya di sisi kiri jalur optik.','210deg 53deg .80m','-.008m .25m -.027m'],
+    ['Monokromator','Pemisahan spektrum berlangsung di dalam komponen ini. Hanya satu panjang gelombang terpilih yang terbagi ke kedua kuvet, dari kiri ke kanan.','160deg 42deg .55m','-.073m .25m -.027m'],
     ['Kuvet blanko','Posisi merah di barisan belakang berisi aquades sebagai pembanding saat pemindaian.','195deg 40deg .5m','-.166m .255m .053m'],
     ['Kuvet sampel','Posisi abu di barisan depan menampung larutan yang dipilih dari baki.','195deg 40deg .45m','-.166m .255m -.107m'],
-    ['Detektor','Di sisi kiri, menerima dua jalur cahaya sesudah melewati kuvet blanko dan sampel.','145deg 45deg .5m','-.012m .25m -.027m'],
+    ['Detektor','Di sisi kanan, menerima dua jalur cahaya sesudah melewati kuvet blanko dan sampel.','215deg 45deg .5m','-.320m .25m -.027m'],
     ['Ruang sampel','Tutup gelap melindungi kedua kuvet dari cahaya luar selama pembacaan.','180deg 42deg .74m','-.166m .27m -.027m'],
     ['Tombol daya','Sakelar instrumen berada di sisi kiri depan. Komputer memiliki daya terpisah.','186deg 77deg .66m','.45m .07m -.40m'],
   ];
@@ -22,7 +22,7 @@
     modelReady:false, measuring:false, blanked:false, selected:'aquades',
     range:'uv', wavelength:core.peakNm, mode:'abs', tab:'scan', currentScan:null,
     zeroGroup:null, queueId:'std-0', filling:false, blankReady:true, requiresSelection:false, lastResult:null,
-    history:loadHistory(), part:-1, workflow:'lambda', zeroed:false,
+    history:loadHistory(), part:-1, workflow:'lambda', zeroed:false, seriesPicked:false,
     confirmedPeaks:{},
   };
   let lidFrame=0, lidResolve=null, beamTimer=0;
@@ -77,6 +77,7 @@
     catch { return {}; }
   }
   function loadCustomSamples() {
+    return []; // fitur "Tambah sampel sendiri" dihapus; sampel lama di browser tidak dimuat lagi
     try {
       const data=JSON.parse(localStorage.getItem('uvvis-custom-samples-v1')||'[]');
       if (!Array.isArray(data)) return [];
@@ -161,25 +162,25 @@
     $('parts-toggle').disabled=busy();
     document.querySelectorAll('.hotspot').forEach(b=>b.disabled=busy());
     const finding=state.workflow==='lambda';
-    const ready=state.upsOn&&state.instrumentOn&&state.pcuOn&&state.softwareOpen;
+    const ready=state.upsOn&&state.instrumentOn&&state.pcuOn&&state.softwareOpen&&state.seriesPicked;
     const applied=Number.isFinite(state.confirmedPeaks[core.datasetKey]);
     $('workflow-lambda').setAttribute('aria-pressed',String(finding));
     $('workflow-concentration').setAttribute('aria-pressed',String(!finding));
     $('workflow-concentration').disabled=busy() || !applied;
     $('workflow-lambda').disabled=busy();
     $('workflow-setup').textContent=finding?
-      'Ketik 246,5 nm (Standar/Sampel 1) atau 248,0 nm (Standar/Sampel 2). Software memilih seri yang sesuai; tidak perlu memilih larutan lebih dulu.':
+      `Seri ${core.datasetKey==='praktikum'?'1':'2'} dipilih. Scan 200–400 nm; puncak tertinggi kurva menjadi λmaks yang dipakai untuk pengukuran.`:
       `λ ${formatPeak(state.confirmedPeaks[core.datasetKey])} nm · blanko aquades · deret standar 0–25 mg/L · sampel Presisi 1–5 dan Akurasi.`;
     $('lambda-entry').hidden=!finding;
-    $('lambda-input').placeholder='Contoh: '+formatPeak(core.peakNm);
-    $('lambda-input').disabled=!ready || busy();
-    $('apply-lambda').disabled=!ready || busy();
-    $('lambda-hint').textContent='246,5 nm → Standar/Sampel 1 · 248,0 nm → Standar/Sampel 2. Seri berganti otomatis; kedua angka berasal dari data praktikum.';
+    $('scan-lambda').disabled=!ready || busy();
+    $('scan-lambda').firstChild.textContent=state.measuring&&finding?'Memindai… ':'START scan λmaks ';
+    $('lambda-hint').textContent=`Seri ${core.datasetKey==='praktikum'?'1':'2'} · sumbu X panjang gelombang (nm), sumbu Y absorbansi. Puncak kurva = λmaks.`;
     $('run-controls').hidden=finding;
     let next;
-    if (!ready) next='Nyalakan UPS → alat → PCU, lalu buka software.';
+    if (state.upsOn&&state.instrumentOn&&state.pcuOn&&state.softwareOpen&&!state.seriesPicked) next='Pilih seri 1 atau seri 2 pada layar monitor.';
+    else if (!ready) next='Nyalakan UPS → alat → PCU, lalu buka software.';
     else if (busy()) next=state.filling?'Menukar kuvet; tunggu sampai selesai…':'Alat sedang bekerja; tunggu hasilnya…';
-    else if (finding) next='Ketik 246,5 atau 248,0 nm, lalu Terapkan λ. Seri akan berganti otomatis.';
+    else if (finding) next='Tekan START scan λmaks; puncak kurva akan menentukan λmaks.';
     else if (state.requiresSelection) next='Pilih larutan baru dari baki di kiri.';
     else if (!state.blanked) next='Tekan Zero blanko untuk mulai pengukuran konsentrasi.';
     else if (getSolution(state.selected).family==='sampel' && parsePositiveDecimal($('sample-weight').value)===null) next='Isi bobot sampel positif pada komputer sebelum START ukur.';
@@ -193,10 +194,13 @@
     $('manual-abs').setAttribute('aria-invalid',String(!!invalidAbs));
     $('scan-button').disabled=!ready || !applied || state.requiresSelection || !state.blanked || busy() || (sample && parsePositiveDecimal($('sample-weight').value)===null) || invalidAbs;
     $('scan-button').firstChild.textContent=state.measuring?'Memindai… ':'02 · START ukur ';
-    $('software').hidden=!state.pcuOn || !state.softwareOpen; $('software-launch').hidden=!state.pcuOn || state.softwareOpen;
+    $('software').hidden=!state.pcuOn || !state.softwareOpen || !state.seriesPicked; $('software-launch').hidden=!state.pcuOn || state.softwareOpen;
+    $('series-chooser').hidden=!state.pcuOn || !state.softwareOpen || state.seriesPicked;
+    document.querySelectorAll('.series-option').forEach(b=>b.disabled=busy());
+    $('chooser-close').disabled=busy();
     $('monitor-off').hidden=state.pcuOn;
     $('monitor-led').classList.toggle('off',!state.pcuOn);
-    $('dataset-name').textContent=`${core.datasets[core.datasetKey].label} · λ praktikum ${formatPeak(core.peakNm)} nm`;
+    $('dataset-name').textContent=applied?`${core.datasets[core.datasetKey].label} · λmaks ${formatPeak(state.confirmedPeaks[core.datasetKey])} nm`:`${core.datasets[core.datasetKey].label} · λmaks belum dicari`;
     $('mode-abs').classList.toggle('active',state.mode==='abs');
     $('mode-t').classList.toggle('active',state.mode==='t');
     $('mode-abs').setAttribute('aria-pressed',String(state.mode==='abs'));
@@ -211,7 +215,7 @@
     origin.hidden=!state.currentScan || !!state.currentScan.baseline;
     if (!origin.hidden) origin.textContent=state.currentScan.origin==='manual'?'Abs input manual · kurva ilustratif':'Abs data praktikum · kurva ilustratif';
     $('readout-caption').textContent=!finding&&state.wavelength===state.confirmedPeaks[core.datasetKey]?'PADA λ TERPASANG':'PADA λ';
-    $('readout-nm').textContent=state.wavelength===core.peakNm?formatPeak(state.wavelength):String(state.wavelength).replace('.',',');
+    $('readout-nm').textContent=finding&&!state.currentScan?'—':state.wavelength===core.peakNm?formatPeak(state.wavelength):String(state.wavelength).replace('.',',');
     $('readout-unit').textContent=state.mode==='abs'?'Abs':'%T';
     let value='—';
     if (state.currentScan) {
@@ -312,7 +316,7 @@
       const ph=(now/1000*.85)%1, xs=.213-ph*.183;
       nodes.forEach(([name,n],i)=>{
         if (!n) return;
-        n.o.position.x=n.x0-(xs-.213);
+        n.o.position.x=n.x0+(xs-.213);
         const dim = i===1 && xs<.1945 ? .2+.8*curT : 1, edge=Math.min(1,ph*6,(1-ph)*6);
         setMaterial(name,[1,1,1,.9*dim*edge]);
       });
@@ -606,17 +610,16 @@
       applyMassOverrides();
       state.blanked=false;state.zeroed=false;state.zeroGroup=null;state.lastResult=null;
       if (!Number.isFinite(state.confirmedPeaks[datasetKey])) state.workflow='lambda';
-      $('lambda-input').value='';
       updateFormula(null);
       drawCalibration();
     }
     if(solution.family!=='blanko'&&!Number.isFinite(state.confirmedPeaks[core.datasetKey]))state.workflow='lambda';
-    if(solution.family!=='blanko')$('custom-sample-series').value=core.datasetKey;
     if (solution.family!=='blanko') {
       const [start,end]=ranges[state.range];
       if(core.peakNm<start || core.peakNm>end) state.range='uv';
       state.wavelength=core.peakNm;
     }
+    if(solution.family!=='blanko'&&state.softwareOpen)state.seriesPicked=true;
     state.currentScan=null;
     $('operation-progress').hidden=true;
     if (solution.family==='blanko') {state.blanked=false;state.zeroed=false;state.zeroGroup=null;}
@@ -632,8 +635,8 @@
       await swapCuvette(slot,id);
       drawSpectrum();
       status(slot==='Blank'?
-        `Kuvet blanko aquades terpasang di belakang; kuvet depan tetap ${getSolution(state.selected).name}. ${state.requiresSelection?'Pilih seri standar atau sampel di baki dahulu.':state.workflow==='lambda'?'Ketik λ praktikum di komputer.':'Jalankan Zero blanko sebelum scan.'}`:
-        `${state.workflow==='lambda'?`Ketik λ ${formatPeak(core.peakNm)} nm dari praktikum lalu Terapkan λ.`:frontMessage(solution)} Seri ${core.datasets[core.datasetKey].label}.`);
+        `Kuvet blanko aquades terpasang di belakang; kuvet depan tetap ${getSolution(state.selected).name}. ${state.requiresSelection?'Pilih seri standar atau sampel di baki dahulu.':state.workflow==='lambda'?'Tekan START scan λmaks di komputer.':'Jalankan Zero blanko sebelum scan.'}`:
+        `${state.workflow==='lambda'?'Tekan START scan λmaks di komputer.':frontMessage(solution)} Seri ${core.datasets[core.datasetKey].label}.`);
     } finally {state.filling=false;updateControls();}
   }
   function makeSolutions() {
@@ -715,14 +718,21 @@
     let grid='';for(let i=0;i<4;i++) {const y=18+i*158/3;grid+=`<line x1="38" y1="${y}" x2="408" y2="${y}" stroke="#e6eef1"/><text x="2" y="${y+3}" fill="#a0b3bd" font-size="10">${(max*(1-i/3)).toFixed(1)}</text>`;}
     $('chart-grid').innerHTML=grid;
     $('chart-line').setAttribute('d',points.length?svgPath(points,start,end,max):'');
-    $('chart-area').setAttribute('d',points.length?`${svgPath(points,start,end,max)} L408,176 L38,176 Z`:'');
-    $('chart-labels').innerHTML=points.length?'':'<text x="223" y="103" text-anchor="middle" fill="#aec1ca" font-size="12">Belum ada pemindaian</text>';
+    const xAt=nm=>(38+(nm-start)*370/(end-start)).toFixed(2);
+    $('chart-area').setAttribute('d',points.length?`${svgPath(points,start,end,max)} L${xAt(points.at(-1).nm)},176 L${xAt(points[0].nm)},176 Z`:'');
+    let labels=points.length?'':'<text x="223" y="103" text-anchor="middle" fill="#aec1ca" font-size="12">Belum ada pemindaian</text>';
+    const lam=state.currentScan;
+    if (lam?.kind==='lambda' && Number.isFinite(lam.readNm)) {
+      const px=38+(lam.readNm-start)*370/(end-start), py=176-lam.readAbs*158/max, anchor=px>300?'end':'start', tx=px+(px>300?-9:9);
+      labels+=`<text x="${tx.toFixed(1)}" y="${Math.max(14,py-6).toFixed(1)}" text-anchor="${anchor}" fill="#1c718d" font-size="11" font-weight="600">λmaks = ${formatPeak(lam.readNm)} nm</text>`;
+    }
+    $('chart-labels').innerHTML=labels;
     if (points.length) {
       const nm=Math.max(start,Math.min(end,state.wavelength)), x=38+(nm-start)*370/(end-start), y=176-interpolatedValue(points,nm)*158/max;
       $('chart-cursor').innerHTML=`<line x1="${x}" y1="16" x2="${x}" y2="176"/><circle cx="${x}" cy="${y}" r="5"/>`;
     } else $('chart-cursor').innerHTML='';
     $('range-start').textContent=`${start} nm`;$('range-end').textContent=`${end} nm`;
-    $('chart-title').textContent=state.currentScan?(state.currentScan.baseline?'Baseline · blanko–blanko':`Spektrum ilustratif · ${state.currentScan.name||getSolution(state.currentScan.solutionId).name}`):'Spektrum ilustratif';
+    $('chart-title').textContent=state.currentScan?(state.currentScan.baseline?'Baseline · blanko–blanko':state.currentScan.kind==='lambda'?`Scan λmaks · ${state.currentScan.name}`:`Spektrum ilustratif · ${state.currentScan.name||getSolution(state.currentScan.solutionId).name}`):'Spektrum ilustratif';
     updateControls();
   }
   function calibrationPoints() {
@@ -820,7 +830,6 @@
         if(core.datasets[item.dataset] && item.dataset!==core.datasetKey) {core.setDataset(item.dataset);applyMassOverrides();updateModelMaterials();}
         state.blanked=false;state.zeroed=false;state.zeroGroup=null;state.requiresSelection=true;
         state.workflow=Number.isFinite(state.confirmedPeaks[core.datasetKey])?'concentration':'lambda';
-        $('lambda-input').value='';
         state.range=Object.keys(ranges).find(k=>ranges[k][0]===item.start&&ranges[k][1]===item.end)||'uv';
         state.wavelength=Math.max(item.start,Math.min(item.end,item.readNm||core.peakNm));
         state.currentScan=item;state.lastResult=item;updateFormula(item);drawSpectrum();drawCalibration();setTab('scan');status('Hasil riwayat ditampilkan. Pilih seri larutan di baki sebelum pengukuran baru.');
@@ -839,7 +848,6 @@
     state.blanked=false;state.zeroed=false;state.zeroGroup=null;state.currentScan=null;
     if (!state.instrumentOn) {
       state.confirmedPeaks={};state.workflow='lambda';
-      $('lambda-input').value='';
       $('operation-progress').hidden=true;
     }
     clearTimeout(beamTimer);showBeam(false);updateModelMaterials();drawSpectrum();
@@ -850,7 +858,7 @@
     state.pcuOn=!state.pcuOn;
     if(!state.pcuOn){state.blanked=false;state.zeroed=false;state.currentScan=null;}
     updateControls();
-    status(state.pcuOn?'PCU aktif dan monitor menyala. Buka software lalu ketik λ praktikum.':'PCU shutdown. Tekan tombol daya pada alat, lalu matikan UPS.');
+    status(state.pcuOn?'PCU aktif dan monitor menyala. Buka software lalu pilih seri 1 atau 2.':'PCU shutdown. Tekan tombol daya pada alat, lalu matikan UPS.');
   }
   function changeWorkflow(mode) {
     if (busy() || (mode==='concentration'&&!Number.isFinite(state.confirmedPeaks[core.datasetKey]))) return;
@@ -859,34 +867,59 @@
     $('operation-progress').hidden=true;
     state.range='uv';state.wavelength=mode==='concentration'?state.confirmedPeaks[core.datasetKey]:core.peakNm;
     updateFormula(null);drawSpectrum();
-    status(mode==='lambda'?`Ketik λ ${formatPeak(core.peakNm)} nm sesuai data praktikum.`:'λ terpasang. Zero blanko dahulu, lalu ukur deret standar dan sampel.');
+    status(mode==='lambda'?'Tekan START scan λmaks untuk mencari panjang gelombang maksimum.':'λ terpasang. Zero blanko dahulu, lalu ukur deret standar dan sampel.');
   }
-  async function applyManualLambda() {
-    if(busy() || !state.softwareOpen || !state.instrumentOn || state.workflow!=='lambda')return;
-    const nm=parsePositiveDecimal($('lambda-input').value);
-    const targetKey=Object.keys(core.datasets).find(key=>nm!==null && Math.abs(nm-core.datasets[key].peakNm)<0.000001);
-    if(!targetKey) {
-      $('lambda-input').setAttribute('aria-invalid','true');
-      status('Data praktikum tersedia pada λ 246,5 atau 248,0 nm. Masukkan salah satunya dengan koma atau titik desimal.');
-      return;
-    }
-    $('lambda-input').setAttribute('aria-invalid','false');
-    const changed=targetKey!==core.datasetKey;
-    const previous=getSolution(state.selected);
-    if(changed){
-      // Dua seri memiliki angka Abs yang berbeda. Ganti isi kuvet depan
-      // sebelum menerima λ baru; sampel buatan sendiri tetap di seri asal.
-      const nextId=previous.family==='blanko' || previous.custom ? 'std-0' : previous.id;
-      await chooseSolution(nextId,targetKey);
-      if(core.datasetKey!==targetKey)return;
-    }
-    $('lambda-input').value=formatPeak(nm);
-    state.confirmedPeaks[core.datasetKey]=nm;
-    state.workflow='concentration';state.range='uv';state.wavelength=nm;
+  // Pilih seri 1 atau 2 sebelum tampilan software muncul. λmaks tidak diketik;
+  // ia dicari lewat scan kurva (Abs terhadap panjang gelombang) pada tombol START scan λmaks.
+  async function pickSeries(key) {
+    if(busy() || !state.softwareOpen || !Object.hasOwn(core.datasets,key))return;
+    state.seriesPicked=true;
+    updateControls();
+    await chooseSolution('std-0',key);
+    if(core.datasetKey!==key)return;
+    const confirmed=state.confirmedPeaks[key];
+    const has=Number.isFinite(confirmed);
+    state.workflow=has?'concentration':'lambda';
+    state.range='uv';state.wavelength=has?confirmed:core.peakNm;
     state.blanked=false;state.zeroGroup=null;state.currentScan=null;
-    $('operation-progress').hidden=true;
     updateFormula(null);drawSpectrum();drawCalibration();
-    status(`λ ${formatPeak(nm)} nm diterapkan untuk seri ${core.datasets[core.datasetKey].label}.${changed && previous.custom?' Sampel tambahan dari seri sebelumnya diganti Standar 0 ppm.':''} Zero blanko ulang sebelum START ukur.`);
+    status(has?`Seri ${key==='praktikum'?'1':'2'} dipilih; λmaks ${formatPeak(confirmed)} nm sudah ditemukan. Zero blanko sebelum START ukur.`:`Seri ${key==='praktikum'?'1':'2'} dipilih. Tekan START scan λmaks untuk mencari panjang gelombang maksimum dari puncak kurva.`);
+  }
+  async function scanLambda() {
+    if(busy() || !state.softwareOpen || !state.seriesPicked || !state.upsOn || !state.instrumentOn || !state.pcuOn || state.workflow!=='lambda')return;
+    const key=core.datasetKey,[start,end]=ranges.uv;
+    let solution=getSolution(state.selected);
+    state.measuring=true;state.currentScan=null;state.blanked=false;state.zeroGroup=null;updateControls();
+    setWorkProgress(0,'Menyiapkan standar untuk scan λmaks');
+    try {
+      // Kurva dipindai dari larutan standar berkonsentrasi tinggi agar puncaknya jelas.
+      if(solution.family!=='standar' || !(solution.targetAbs>.1)) {
+        await setLid(true);
+        await swapCuvette('Sample','std-25');
+        solution=getSolution('std-25');
+      }
+      const points=core.spectrum(solution,start,end,2);
+      status('Scan λmaks: monokromator memindai 200–400 nm, kurva Abs terhadap panjang gelombang digambar.');
+      let drawn=0;
+      await opticalSweep(solution,3200,'Scan λmaks',(p,nm)=>{
+        const now=performance.now();if(now-drawn<90&&p<1)return;drawn=now;
+        state.currentScan={solutionId:solution.id,name:solution.name,kind:'lambda',start,end,points:points.filter(q=>q.nm>=nm)};
+        state.wavelength=nm;drawSpectrum();
+      });
+      const top=points.reduce((best,q)=>q.abs>best.abs?q:best,points[0]);
+      const record={id:`${Date.now()}-${Math.random().toString(36).slice(2,7)}`,ts:Date.now(),dataset:key,kind:'lambda',solutionId:solution.id,name:solution.name,weight:null,start,end,points,
+        readNm:top.nm,readAbs:top.abs,absPeak:null,origin:'praktikum',manualAbsText:null};
+      state.history.unshift(record);state.history=state.history.slice(0,60);saveHistory();
+      state.confirmedPeaks[key]=top.nm;
+      state.currentScan=record;state.lastResult=record;state.wavelength=top.nm;
+      setWorkProgress(100,`Selesai · λmaks = ${formatPeak(top.nm)} nm (Abs ${formatAbs(top.abs,key)})`);
+      drawSpectrum();drawCalibration();drawHistory();
+      status(`λmaks ditemukan: ${formatPeak(top.nm)} nm, titik puncak kurva. Menyiapkan Standar 0 ppm di kuvet depan…`);
+      await setLid(true);state.queueId='std-0';
+      await swapCuvette('Sample','std-0');
+      state.workflow='concentration';state.range='uv';
+      status(`λmaks ${formatPeak(top.nm)} nm terpasang untuk seri ${core.datasets[key].label}. Klik tab 2 · Pengukuran, lalu Zero blanko sebelum START ukur.`);
+    } finally {state.measuring=false;updateControls();}
   }
   async function zero() {
     if (!state.upsOn||!state.instrumentOn||!state.pcuOn||!state.softwareOpen||state.workflow!=='concentration'||state.requiresSelection||busy()||!Number.isFinite(state.confirmedPeaks[core.datasetKey])) return;
@@ -975,30 +1008,15 @@
   $('ups-power').addEventListener('click',powerUps);
   $('instrument-power').addEventListener('click',powerInstrument);
   $('pcu-power').addEventListener('click',powerPcu);
-  $('open-software').addEventListener('click',()=>{if(!state.pcuOn||!state.instrumentOn)return;state.softwareOpen=true;updateControls();status(`Ketik λ ${formatPeak(core.peakNm)} nm sesuai lembar praktikum, lalu Terapkan λ.`);});
-  $('close-software').addEventListener('click',()=>{if(busy())return;state.softwareOpen=false;state.blanked=false;state.zeroed=false;updateControls();status('Software ditutup. Shutdown PCU, lalu matikan alat dan UPS.');});
+  $('open-software').addEventListener('click',()=>{if(!state.pcuOn||!state.instrumentOn)return;state.softwareOpen=true;state.seriesPicked=false;updateControls();status('Software terbuka. Pilih seri 1 atau seri 2 pada layar monitor.');});
+  const closeSoftware=()=>{if(busy())return;state.softwareOpen=false;state.seriesPicked=false;state.blanked=false;state.zeroed=false;updateControls();status('Software ditutup. Shutdown PCU, lalu matikan alat dan UPS.');};
+  $('close-software').addEventListener('click',closeSoftware);
+  $('chooser-close').addEventListener('click',closeSoftware);
+  document.querySelectorAll('.series-option').forEach(button=>button.addEventListener('click',()=>pickSeries(button.dataset.series)));
   $('workflow-lambda').addEventListener('click',()=>changeWorkflow('lambda'));
   $('workflow-concentration').addEventListener('click',()=>changeWorkflow('concentration'));
-  $('apply-lambda').addEventListener('click',applyManualLambda);
-  $('lambda-input').addEventListener('keydown',event=>{if(event.key==='Enter')applyManualLambda();});
+  $('scan-lambda').addEventListener('click',scanLambda);
   $('sample-weight').addEventListener('input',updateControls);
-  $('custom-sample-form').addEventListener('submit',event=>{
-    event.preventDefault();
-    if(busy())return;
-    const key=$('custom-sample-series').value,name=$('custom-sample-name').value.replace(/\s+/g,' ').trim();
-    const feedback=$('custom-sample-feedback');
-    if(!Object.hasOwn(core.datasets,key)){feedback.textContent='Pilih seri data yang tersedia.';return;}
-    if(!name || name.length>40){feedback.textContent='Isi nama sampel, maksimal 40 karakter.';return;}
-    if(customSamples.filter(s=>!s.archived).length>=50){feedback.textContent='Maksimal 50 sampel tambahan aktif. Arsipkan sampel lama sebelum menambah.';return;}
-    if(customSamples.some(s=>s.dataset===key&&!s.archived&&s.name.toLocaleLowerCase('id')===name.toLocaleLowerCase('id'))){feedback.textContent='Nama sampel ini sudah ada di seri tersebut.';return;}
-    const id=`user-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-    const sample={id,name,dataset:key,archived:false,custom:true,family:'sampel',color:'#dcedf4',alpha:.5,peaks:[],weight:0};
-    customSamples.push(sample);core.solutions.push(sample);saveCustomSamples();
-    $('custom-sample-name').value='';
-    feedback.textContent=`${name} ditambahkan. Isi bobot dan Abs manual di software komputer.`;
-    renderCustomSolutions();drawSampleResults();
-    void chooseSolution(id,key);
-  });
   $('lid-button').addEventListener('click',()=>setLid(!state.lidOpen));
   $('reset-view').addEventListener('click',resetView);
   $('zero-button').addEventListener('click',zero);

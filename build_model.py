@@ -220,6 +220,7 @@ for i in range(13):
 # one through each cuvette, from the monochromator on one wall to the detector
 # on the opposite wall.  No third rack.
 CUV_X = .166
+MX = lambda x: 2 * CUV_X - x   # cermin terhadap tengah ruang kuvet: cahaya berjalan kiri -> kanan di layar
 BLANK_Z, SAMPLE_Z = .053, -.107          # rear / front cuvette centres
 MID_Z = (BLANK_Z + SAMPLE_Z) / 2         # lane divider and housings are centred here
 BEAM_Y = .258
@@ -280,37 +281,37 @@ def sphere(name, ctr, r, mat, seg=16, rings=9):
             faces.extend(((a, c2, b), (b, c2, d)))
     return mesh(name, verts, norms, faces, mat)
 
-# Source at the right, wavelength selector next, two cells in the middle and
-# detector at the left, matching the visible operator-side teaching cutaway.
-rounded_box("LightSource", (.324, .245, MID_Z), (.030, .057, .082), .006, lamp)
-rounded_box("SourceWindow", (.308, BEAM_Y, MID_Z), (.003, .022, .029), .001, source_glow)
-rounded_box("Monochromator", (.2665, .245, MID_Z), (.078, .056, .205), .006, mono_housing)   # diperlebar agar prisma, pelangi, dan celah muat berurutan
-rounded_box("Detector", (.012, .245, MID_Z), (.030, .050, .215), .006, lamp)
+# Source at the left, wavelength selector next, two cells in the middle and
+# detector at the right (light travels left -> right on screen), matching the visible operator-side teaching cutaway.
+rounded_box("LightSource", (MX(.324), .245, MID_Z), (.030, .057, .082), .006, lamp)
+rounded_box("SourceWindow", (MX(.308), BEAM_Y, MID_Z), (.003, .022, .029), .001, source_glow)
+rounded_box("Monochromator", (MX(.2665), .245, MID_Z), (.078, .056, .205), .006, mono_housing)   # diperlebar agar prisma, pelangi, dan celah muat berurutan
+rounded_box("Detector", (MX(.012), .245, MID_Z), (.030, .050, .215), .006, lamp)
 for label, z in (("Blank", BLANK_Z), ("Sample", SAMPLE_Z)):
-    rounded_box("OpticalSlit" + label, (.233, BEAM_Y, z), (.003, .014, .019), .001, light)
-    rounded_box("DetectorWindow" + label, (.030, BEAM_Y, z), (.003, .014, .019), .001, steel)
+    rounded_box("OpticalSlit" + label, (MX(.233), BEAM_Y, z), (.003, .014, .019), .001, light)
+    rounded_box("DetectorWindow" + label, (MX(.030), BEAM_Y, z), (.003, .014, .019), .001, steel)
 for label, z, mat, halo, pulse in (("Reference", BLANK_Z, beam_ref, halo_ref, pulse_ref),
                                    ("Sample", SAMPLE_Z, beam_sample, halo_samp, pulse_samp)):
-    rod(label + "SplitFromMonochromator", (.232, BEAM_Y, MID_Z), (.213, BEAM_Y, z), .0022, mat, 10)
-    rod(label + "SplitHalo", (.232, BEAM_Y, MID_Z), (.213, BEAM_Y, z), .0065, halo, 10)
-    rod(label + "BeamThroughCuvette", (.213, BEAM_Y, z), (.030, BEAM_Y, z), .0026, mat, 10)
-    rod(label + "BeamHalo", (.213, BEAM_Y, z), (.030, BEAM_Y, z), .0085, halo, 12)
-    rod(label + "Lens", (.199, BEAM_Y, z), (.203, BEAM_Y, z), .017, lens_glass, 24)   # lensa pemfokus sebelum kuvet
-    sphere(label + "Pulse", (.213, BEAM_Y, z), .0055, pulse, 12, 7)                    # pulsa foton, digerakkan app.js
+    rod(label + "SplitFromMonochromator", (MX(.232), BEAM_Y, MID_Z), (MX(.213), BEAM_Y, z), .0022, mat, 10)
+    rod(label + "SplitHalo", (MX(.232), BEAM_Y, MID_Z), (MX(.213), BEAM_Y, z), .0065, halo, 10)
+    rod(label + "BeamThroughCuvette", (MX(.213), BEAM_Y, z), (MX(.030), BEAM_Y, z), .0026, mat, 10)
+    rod(label + "BeamHalo", (MX(.213), BEAM_Y, z), (MX(.030), BEAM_Y, z), .0085, halo, 12)
+    rod(label + "Lens", (MX(.199), BEAM_Y, z), (MX(.203), BEAM_Y, z), .017, lens_glass, 24)   # lensa pemfokus sebelum kuvet
+    sphere(label + "Pulse", (MX(.213), BEAM_Y, z), .0055, pulse, 12, 7)                    # pulsa foton, digerakkan app.js
 
 # Lampu di kanan: bola pijar kecil + halo, lalu berkas putih menuju prisma di dalam monokromator.
-sphere("SourceBulbCore", (.306, BEAM_Y, MID_Z), .0085, bulb_core)
-sphere("SourceBulbHalo", (.306, BEAM_Y, MID_Z), .015, bulb_halo)
+sphere("SourceBulbCore", (MX(.306), BEAM_Y, MID_Z), .0085, bulb_core)
+sphere("SourceBulbHalo", (MX(.306), BEAM_Y, MID_Z), .015, bulb_halo)
 # Susunan mengikuti diagram acuan (arah cahaya ke kiri): berkas putih -> PRISMA (segitiga sama sisi, puncak ke atas)
 # -> pelangi melebar -> CELAH hitam -> satu berkas satu warna. Merah di atas, violet di bawah.
 # Prisma berdiri seperti kuvet: sisi segitiganya (alas rata di bawah, puncak di atas) menghadap kotak slit hitam,
 # memanjang sepanjang arah cahaya (sumbu x), bukan menghadap depan/belakang.
-PRISM_X, PRISM_S, PRISM_LX = .284, .028, .007            # pusat x, sisi segitiga sama sisi, setengah panjang sepanjang x
+PRISM_X, PRISM_S, PRISM_LX = MX(.284), .028, .007            # pusat x, sisi segitiga sama sisi, setengah panjang sepanjang x
 PRISM_H = PRISM_S * math.sqrt(3) / 2
-APEX_X, FAN_L, FAN_SPREAD = PRISM_X - PRISM_LX, .030, .022   # titik asal pelangi = tengah sisi kiri prisma
-ENTRY_X = PRISM_X + PRISM_LX                              # titik masuk berkas putih = tengah sisi kanan prisma
-rod("IncidentWhiteRay", (.307, BEAM_Y, MID_Z), (ENTRY_X, BEAM_Y, MID_Z), .0032, incident, 12)
-rod("IncidentGlowRay", (.307, BEAM_Y, MID_Z), (ENTRY_X, BEAM_Y, MID_Z), .0095, inc_glow, 12)
+APEX_X, FAN_L, FAN_SPREAD = PRISM_X + PRISM_LX, .030, .022   # titik asal pelangi = tengah sisi kiri prisma
+ENTRY_X = PRISM_X - PRISM_LX                              # titik masuk berkas putih = tengah sisi kanan prisma
+rod("IncidentWhiteRay", (MX(.307), BEAM_Y, MID_Z), (ENTRY_X, BEAM_Y, MID_Z), .0032, incident, 12)
+rod("IncidentGlowRay", (MX(.307), BEAM_Y, MID_Z), (ENTRY_X, BEAM_Y, MID_Z), .0095, inc_glow, 12)
 prism_mesh("MonoPrism", [(MID_Z - PRISM_S / 2, BEAM_Y - PRISM_H / 2), (MID_Z + PRISM_S / 2, BEAM_Y - PRISM_H / 2),
                          (MID_Z, BEAM_Y + PRISM_H / 2)],
            PRISM_X - PRISM_LX, PRISM_X + PRISM_LX, prism_glass, axis="x")
@@ -319,19 +320,19 @@ doc["nodes"].append({"name": "MonoRotor", "translation": [-APEX_X, BEAM_Y, MID_Z
 doc["nodes"][0]["children"].append(rotor)
 for i, (n, _c) in enumerate(BANDS):
     z0 = -FAN_SPREAD / 2 + i * FAN_SPREAD / 7
-    prism_mesh("Band" + n, [(0, 0), (-FAN_L, z0), (-FAN_L, z0 + FAN_SPREAD / 7)], -.002, .002, band_mats[i], rotor)
+    prism_mesh("Band" + n, [(0, 0), (FAN_L, z0), (FAN_L, z0 + FAN_SPREAD / 7)], -.002, .002, band_mats[i], rotor)
 # Celah keluar (slit): dua pelat hitam tinggi seperti pada diagram acuan, tepat sesudah pelangi.
 # Hanya pita warna yang jatuh pada celah sempit di tengah yang lolos; pita lain terhalang pelat.
 SLIT_T, SLIT_H, SLIT_LEN, GAP = .004, .050, .045, .00275
-SLIT_X = APEX_X - FAN_L - .0005 - SLIT_T / 2
+SLIT_X = APEX_X + FAN_L + .0005 + SLIT_T / 2
 for sgn, nm in ((1, "Top"), (-1, "Bottom")):
     rounded_box("SlitPlate" + nm, (SLIT_X, .248, MID_Z + sgn * (GAP + SLIT_LEN / 2)), (SLIT_T, SLIT_H, SLIT_LEN), .0006, slit_black)
     rounded_box("SlitRim" + nm, (SLIT_X, .248, MID_Z + sgn * (GAP + .0004)), (SLIT_T + .0012, SLIT_H + .0012, .0008), .0003, slit_rim)
-rod("SelectedBeam", (SLIT_X, BEAM_Y, MID_Z), (.232, BEAM_Y, MID_Z), .0026, sel_core, 10)
-rod("SelectedGlow", (SLIT_X, BEAM_Y, MID_Z), (.232, BEAM_Y, MID_Z), .0085, sel_glow, 12)
+rod("SelectedBeam", (SLIT_X, BEAM_Y, MID_Z), (MX(.232), BEAM_Y, MID_Z), .0026, sel_core, 10)
+rod("SelectedGlow", (SLIT_X, BEAM_Y, MID_Z), (MX(.232), BEAM_Y, MID_Z), .0085, sel_glow, 12)
 # Pembagi berkas (pelat kaca 45 derajat) tepat di titik percabangan.
-quad("BeamSplitter", [(.226, .243, MID_Z - .006), (.238, .243, MID_Z + .006),
-                      (.238, .273, MID_Z + .006), (.226, .273, MID_Z - .006)], splitter_glass)
+quad("BeamSplitter", [(MX(.226), .243, MID_Z - .006), (MX(.238), .243, MID_Z + .006),
+                      (MX(.238), .273, MID_Z + .006), (MX(.226), .273, MID_Z - .006)], splitter_glass)
 
 # The dark cover rotates from its rear hinge.  The animation drives one node,
 # so repeated open/close actions cannot desynchronise separate pieces.

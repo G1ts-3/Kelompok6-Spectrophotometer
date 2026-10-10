@@ -45,3 +45,27 @@ Penyiapan dan pembilasan larutan/kuvet, pencatatan log book, nama operator dan b
 - `build_model.py` — pembuat GLB prosedural.
 - `data/` — workbook sumber asli.
 - `tests/revision.test.cjs` — pemeriksaan perpindahan otomatis antarseri lewat λ, bobot bebas, Abs workbook dan manual, sampel tambahan, kurva, progres, riwayat, siklus tutup, dan alur daya; jalankan `node tests/revision.test.cjs`. `node lid_regression.cjs` menjalankan rangkaian pemeriksaan yang sama.
+
+## Mode transparan saat pengukuran
+
+Begitu Zero blanko, START ukur, atau scan λmaks dimulai, tutup dan rumah monokromator menjadi transparan dan kamera turun ke ruang kuvet. Proses di dalam alat mengikuti diagram acuan, berurutan dari kiri ke kanan dan diberi nomor pada model: **1 Source** (lampu, cahaya putih menyebar) → **2 Condenser** (lensa cembung menyejajarkan berkas) → **3 Monochromator** (prisma menguraikan spektrum) → **4 Slit** (hanya satu λ yang lolos) → **5 Sample Holder** (I₀ masuk, Iₜ keluar dari kuvet) → **6 Detector** (layar merah menampilkan angka Abs secara langsung). Nomor yang sedang berperan menyala kuning bergantian. `build_model.py` menambahkan kondensor, berkas menyebar dan sejajar, serta layar detektor; jalankan ulang bila model diubah.
+
+## Perbaikan scan λmaks dan mode tampilan
+- Scan λmaks kini mengikuti instruksi kerja: aquades di kedua kuvet → Zero & Baseline (garis dasar) → ganti ke Standar 25 ppm → START scan 400→200 nm, puncak kurva = λmaks (Seri 1: 246,5 nm; Seri 2: 248,0 nm).
+- Grafik otomatis tergulir ke tampilan saat alat bekerja, sehingga kurva terlihat selama scan.
+- Sorotan langkah 1 sampai 6 bergerak kiri ke kanan; penomoran dibuat zigzag agar tidak bertumpuk.
+- Saklar "Transparan" di pojok kiri atas model 3D: mati = tampilan alat biasa; menyala = cangkang jadi kaca tipis seperti gambar potongan brosur, sehingga lampu, cermin, monokromator, chopper, dan jalur cahaya di dalam terlihat. Saat mengukur, badan alat tetap otomatis transparan sementara.
+- Isi alat pada mode Transparan dibuat jauh lebih rinci mengikuti gambar cutaway brosur: lampu deuterium dan tungsten dengan reflektor dan lensa, cermin datar dan cekung, celah masuk/keluar, pra-monokromator, monokromator dengan kisi, chopper ganda bermotor, jalur merah berpanah, berkas merah melintasi kuvet, modul detektor (cermin pengumpul + tabung PMT), motor, rel berskrup emas, papan elektronik, catu daya, dan kipas.
+- Saat mengukur dalam mode Transparan, kamera hanya mundur sedikit sehingga seluruh alat tetap terlihat.
+
+## Saklar Transparan (diperbarui)
+- Saklar di pojok kiri atas model 3D (default aktif). Alat selalu tampil biasa saat diam.
+- Aktif: begitu Zero, Baseline, START ukur, atau scan λmaks berjalan, kamera mundur, badan alat menjadi transparan dengan garis tepi biru, dan isi alat beranimasi: bola cahaya mengalir sepanjang jalur merah (lampu, cermin, pra-monokromator, monokromator, chopper, optik bawah, detektor), chopper dan roda gigi berputar, kisi bergoyang, kipas berputar, ditambah animasi diagram proses 1 sampai 6.
+- Mati: saat scan alat tetap tampil biasa (tutup menutup, grafik berjalan) tanpa transparansi.
+- Isi alat ditambah detail: ruang optik bawah (laras lensa, cermin datar dan cekung), menara lampu, kolom penyangga, kipas berbilah, roda gigi, dan garis tepi biru.
+
+## Pembaruan: callout brosur, Jeda, panel tampilan
+- Nomor 1 sampai 9 di model transparan mengikuti sembilan callout brosur Cary 100/300 (biaya kepemilikan rendah, premonokromator, tanpa pergeseran puncak, celah variabel, kompartemen sampel besar, optik berlapis kuarsa, pilihan mode, pengendali aksesori, desain optik unggul). Saat dijeda, klik nomor untuk membaca penjelasan dan zoom otomatis ke bagiannya.
+- Tombol Jeda/Lanjut di samping "Kenali bagian" (muncul saat animasi transparan berjalan) membekukan animasi, grafik, dan jam proses.
+- Panel kanan (hanya muncul saat dijeda): Putar/Geser, tombol panah, zoom plus/minus. Tahan tombol untuk bergerak terus; ↺ mengembalikan sudut pandang.
+- Isi alat disusun ulang: lampu, lensa besar, cermin datar/cekung, pra-monokromator, monokromator, chopper ganda, batang pemandu, kluster cermin, jalur turun ke modul detektor (cermin cekung hitam + tabung PMT), serta bola cahaya yang mengalir di sepanjang jalur merah.

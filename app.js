@@ -19,7 +19,7 @@
   ];
   const state = {
     upsOn:false, instrumentOn:false, pcuOn:false, softwareOpen:false, lidOpen:false, lidProgress:0,
-    modelReady:false, measuring:false, blanked:false, selected:'aquades',
+    modelReady:false, transparent:true, paused:false, sweeping:false, callout:-1, measuring:false, blanked:false, selected:'aquades',
     range:'uv', wavelength:core.peakNm, mode:'abs', tab:'scan', currentScan:null,
     zeroGroup:null, queueId:'std-0', filling:false, blankReady:true, requiresSelection:false, lastResult:null,
     history:loadHistory(), part:-1, workflow:'lambda', zeroed:false, seriesPicked:false,
@@ -160,6 +160,7 @@
     $('lid-button').lastChild.textContent=state.lidOpen?' Tutup tutup':' Buka tutup';
     $('lid-button').disabled=busy();
     $('parts-toggle').disabled=busy();
+    $('mode-button').disabled=busy();
     document.querySelectorAll('.hotspot').forEach(b=>b.disabled=busy());
     const finding=state.workflow==='lambda';
     const ready=state.upsOn&&state.instrumentOn&&state.pcuOn&&state.softwareOpen&&state.seriesPicked;
@@ -259,6 +260,10 @@
   // visible on desktop; the aspect term protects the same composition on mobile.
   function scanView() {
     const st=$('stage'), aspect=st.clientWidth/Math.max(1,st.clientHeight), t=2*Math.tan(Math.PI/12);   // FOV vertikal 30°
+    if(state.transparent) {            // mode transparan: kamera lebih jauh agar seluruh alat dan isinya terlihat
+      const dw=Math.max(1.3,1.1/(t*aspect));
+      return {orbit:`180deg 48deg ${dw.toFixed(2)}m`,target:'-.02m .20m -.02m'};
+    }
     const d=Math.max(.58/t,.54/(t*aspect),.96);
     return {orbit:`180deg 40deg ${d.toFixed(2)}m`,target:'-.166m .262m -.027m'};
   }
@@ -280,6 +285,24 @@
       if (typeof mat.setAlphaMode==='function') mat.setAlphaMode(g>.001?'BLEND':'OPAQUE');
       mat.pbrMetallicRoughness.setBaseColorFactor([0,1,2].map(i=>b[i]+(tint[i]-b[i])*g).concat(1-.78*g));
     } catch { /* material belum siap */ }
+  }
+  // Mode tembus pandang: seluruh cangkang luar menjadi kaca tipis berwarna biru seperti gambar potongan di brosur,
+  // sehingga cermin, lampu, monokromator, chopper, dan jalur merah di dalam alat terlihat.
+  const shellMats=[['PorcelainWhite',[.45,.66,.80],.13],['WarmWhiteTop',[.50,.70,.84],.12],['SeamWhite',[.40,.60,.76],.20],
+    ['LowerGraphite',[.25,.38,.50],.16],['VentPanel',[.30,.45,.56],.14],['VentSlots',[.30,.45,.56],.20],['LampHousing',[.35,.55,.70],.22]], shellBase={};
+  function setShellGhost(g) {
+    setLidGhost(g); setMonoGhost(g);
+    setMaterial('ChamberRay',[.95,.12,.10,.95*g]);            // berkas merah melintasi kompartemen sampel
+    setMaterial('OutlineBlue',[.20,.26,.80,.9*g]);            // garis tepi biru seperti gambar potongan brosur
+    for (const [n,tint,a] of shellMats) {
+      try {
+        const mat=viewer.model?.materials.find(m=>m.name===n); if(!mat) continue;
+        shellBase[n]=shellBase[n]||[...mat.pbrMetallicRoughness.baseColorFactor];
+        const b=shellBase[n];
+        if (typeof mat.setAlphaMode==='function') mat.setAlphaMode(g>.001?'BLEND':'OPAQUE');
+        mat.pbrMetallicRoughness.setBaseColorFactor([0,1,2].map(i=>b[i]+(tint[i]-b[i])*g).concat(1-(1-a)*g));
+      } catch { /* material belum siap */ }
+    }
   }
   const nodeCache={};
   function findNodeByMat(name) {
@@ -306,14 +329,57 @@
     const dz=-.022/2+(f+.5)*.022/7;                      // jarak pita dari sumbu (m), spread 22 mm
     rotor.rotation.y=0; rotor.position.z=rotorZ0-dz;     // geser, bukan putar
   }
+  // Animasi isi alat saat scan transparan: bola cahaya mengalir sepanjang jalur merah (lampu, cermin, pra-monokromator,
+  // monokromator, chopper, detektor, optik bawah), chopper dan roda gigi berputar, kisi bergoyang, kipas berputar.
+  let rig;
+  function getRig() {
+    if (rig!==undefined) return rig;
+    rig=null;
+    try {
+      const sym=Object.getOwnPropertySymbols(viewer).find(x=>x.description==='scene'), scene=sym&&viewer[sym];
+      const paths=scene?.getObjectByName('Instrument')?.userData?.paths;
+      let tpl=null; scene?.traverse(o=>{ if(!tpl&&o.isMesh&&o.material?.name==='InternalPulse') tpl=o; });
+      if(!paths||!tpl) return rig;
+      const items=[];
+      for(const p of paths) {
+        const pts=p.pts.map(q=>[-q[0],q[1],q[2]]), segs=[]; let len=0;
+        for(let i=0;i<pts.length-1;i++){ const d=Math.hypot(pts[i+1][0]-pts[i][0],pts[i+1][1]-pts[i][1],pts[i+1][2]-pts[i][2]); segs.push(d); len+=d; }
+        for(let k=0;k<p.n;k++){ const m=items.length?tpl.clone():tpl; if(m!==tpl) tpl.parent.add(m); items.push({m,pts,segs,len,off:k/p.n}); }
+      }
+      const spin=[['SpinChopper','y',11],['SpinGear','x',3],['SpinFan','z',16]].map(([n,ax,w])=>({o:scene.getObjectByName(n),ax,w})).filter(q=>q.o);
+      const rock=[['RockGratingPre',0],['RockGratingMono',1.7]].map(([n,ph])=>({o:scene.getObjectByName(n),ph})).filter(q=>q.o);
+      rig={items,spin,rock};
+    } catch { rig=null; }
+    return rig;
+  }
+  function animateInside(now) {
+    const rg=getRig(); if(!rg) return; const t=now/1000;
+    for(const it of rg.items) {
+      const u=(t*.24/Math.max(it.len,.25)+it.off)%1; let d=u*it.len, i=0;
+      while(i<it.segs.length-1 && d>it.segs[i]){ d-=it.segs[i]; i++; }
+      const f=it.segs[i]?Math.min(1,d/it.segs[i]):0, a=it.pts[i], b=it.pts[i+1];
+      it.m.position.set(a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f);
+      it.m.scale.setScalar(Math.max(.01,Math.min(1,u*10,(1-u)*10)));
+    }
+    for(const s of rg.spin) s.o.rotation[s.ax]=t*s.w;
+    for(const r of rg.rock) r.o.rotation.y=Math.sin(t*2.2+r.ph)*.5;
+  }
+  function resetInside() {
+    const rg=getRig(); if(!rg) return;
+    setMaterial('InternalPulse',[1,.93,.55,0]);
+    for(const s of rg.spin) s.o.rotation[s.ax]=0;
+    for(const r of rg.rock) r.o.rotation.y=0;
+  }
   let curT=1;
   // Pulsa foton kecil bergerak sepanjang kedua jalur (arah cahaya), dan meredup di jalur sampel setelah menembus larutan.
   function startPulses() {
     const nodes=[['PulseRef',findNodeByMat('PulseRef')],['PulseSample',findNodeByMat('PulseSample')]];
     let alive=true;
+    setMaterial('InternalPulse',[1,.93,.55,.95]);
     const loop=now=>{
       if (!alive) return;
-      const ph=(now/1000*.85)%1, xs=.213-ph*.183;
+      animateInside(tnow());
+      const ph=(tnow()/1000*.85)%1, xs=.213-ph*.183;
       nodes.forEach(([name,n],i)=>{
         if (!n) return;
         n.o.position.x=n.x0+(xs-.213);
@@ -323,15 +389,33 @@
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
-    return () => { alive=false; for (const [name] of nodes) setMaterial(name,[1,1,1,0]); };
+    return () => { alive=false; resetInside(); for (const [name] of nodes) setMaterial(name,[1,1,1,0]); };
   }
+  // Jam yang berhenti saat animasi dijeda: dipakai tween, denyut cahaya, dan putaran komponen.
+  let pausedMs=0, pauseAt=null;
+  const tnow=()=>performance.now()-pausedMs-(pauseAt!==null?performance.now()-pauseAt:0);
   function tween(ms,fn) {
     return new Promise(resolve=>{
       if (reduced()) { fn(1); resolve(); return; }
-      const t0=performance.now();
-      const tick=now=>{ const p=Math.min(1,(now-t0)/ms); fn(p); p<1?requestAnimationFrame(tick):resolve(); };
+      const t0=tnow();
+      const tick=()=>{
+        if (pauseAt!==null) { requestAnimationFrame(tick); return; }
+        const p=Math.min(1,(tnow()-t0)/ms); fn(p); p<1?requestAnimationFrame(tick):resolve();
+      };
       requestAnimationFrame(tick);
     });
+  }
+  function setPaused(on) {
+    if(on===state.paused || (on && !state.sweeping))return;
+    if(on) pauseAt=performance.now(); else if(pauseAt!==null) { pausedMs+=performance.now()-pauseAt; pauseAt=null; }
+    state.paused=on;
+    $('stage').classList.toggle('paused',on);
+    $('pause-button').setAttribute('aria-pressed',String(on));
+    $('pause-button').firstElementChild.textContent=on?'▶':'⏸';
+    $('pause-label').textContent=on?'Lanjut':'Jeda';
+    if(!on) { closeCallout(); try { const sv=scanView(); viewer.cameraOrbit=sv.orbit; viewer.cameraTarget=sv.target; } catch { /* kamera belum siap */ } }
+    status(on?'Animasi dijeda. Klik nomor bagian untuk penjelasan; gunakan panel kanan untuk zoom, putar, dan geser.':'Animasi dilanjutkan.');
+    updateControls();
   }
   function saveCamera() {
     try { const o=viewer.getCameraOrbit(), t=viewer.getCameraTarget(); return {orbit:`${o.theta}rad ${o.phi}rad ${o.radius}m`,target:`${t.x}m ${t.y}m ${t.z}m`}; }
@@ -345,33 +429,59 @@
     $('progress-fill').style.width=`${value}%`;
     $('progress-meter').setAttribute('aria-valuenow',String(value));
   }
+  const PROCESS_STEPS=['Lampu dan cermin kuarsa','Premonokromator · kisi memilih λ','Celah variabel · satu λ lolos','Chopper ganda · sampel dan referensi','Kompartemen sampel · I₀ → Iₜ','Detektor · membaca Iₜ'];
+  function scrollToChart(top=false) {
+    const sc=document.querySelector('.software-scroll'), card=document.querySelector('.chart-card');
+    if(!sc||!card)return;
+    try { const y=top?0:Math.max(0,sc.scrollTop+card.getBoundingClientRect().top-sc.getBoundingClientRect().top-((document.querySelector('.scan-action-dock')?.offsetHeight||0)+8)); sc.scrollTo({top:y,behavior:reduced()?'auto':'smooth'}); } catch { sc.scrollTop=0; }
+  }
+  // Saklar Transparan: aktif = saat scan alat menjadi transparan dan proses di dalamnya dianimasikan; mati = alat tampil biasa.
+  function setTransparent(on) {
+    if(busy())return;
+    state.transparent=on;
+    $('stage').classList.toggle('transparent',on);
+    $('mode-button').setAttribute('aria-checked',String(on));
+    status(on?'Mode transparan aktif: saat scan, badan alat menjadi tembus pandang dan jalur cahaya di dalamnya beranimasi.':'Mode transparan mati: alat tampil biasa saat scan.');
+  }
   async function opticalSweep(solution,ms,title,onProgress,fixedNm=null) {
     const [start,end]=ranges[state.range], cam=saveCamera();
     const from=fixedNm??(state.workflow==='lambda'?end:start), to=fixedNm??(state.workflow==='lambda'?start:end);
-    const sv=scanView(); viewer.fieldOfView='30deg'; viewer.cameraOrbit=sv.orbit; viewer.cameraTarget=sv.target;   // zoom dari atas ke kuvet
+    const see=state.transparent;
+    if(see){ const sv=scanView(); viewer.fieldOfView='30deg'; viewer.cameraOrbit=sv.orbit; viewer.cameraTarget=sv.target; }   // mode transparan: kamera mundur agar seluruh alat terlihat
     setWorkProgress(4,'Menutup ruang sampel');
     await setLid(false);
-    await tween(600,p=>{ setLidGhost(p); setMonoGhost(p); });                      // tutup & rumah monokromator jadi tembus pandang
+    scrollToChart();
+    if(see) await tween(600,p=>{ setShellGhost(p); });   // mode transparan: badan alat tembus pandang
     setWorkProgress(15,'Sumber cahaya menyala');
-    showBeam(true);
-    await wait(reduced()?0:280);                                             // lampu menyala lebih dulu
-    await tween(420,p=>beamLook(from,solution,p));                           // kemudian prisma, spektrum, dan dua jalur terpilih
+    let stopPulses=()=>{};
+    if(see) {
+      showBeam(true);
+      await wait(reduced()?0:280);                                             // lampu menyala lebih dulu
+      await tween(420,p=>beamLook(from,solution,p));                           // kemudian prisma, spektrum, dan dua jalur terpilih
+      stopPulses=startPulses();
+      state.sweeping=true; $('pause-button').hidden=false;      // tombol Jeda baru muncul saat animasi benar-benar berjalan
+    }
     $('scan-hud').hidden=false;
-    const stopPulses=startPulses();
     await tween(ms,p=>{
       const nm=from+(to-from)*p;
-      const col=css(beamLook(nm,solution));
-      const phase=p<.3?'Monokromator memilih λ':p<.68?'Cahaya melewati blanko & sampel':'Detektor membaca cahaya';
+      const col=see?css(beamLook(nm,solution)):css(nmToRgb(nm));
+      // Urutan proses mengikuti diagram: Source → Condenser → Monochromator → Slit → Sample Holder → Detector.
+      // Sorotan bergerak kiri → kanan satu putaran tiap 3 dtk, searah jalur cahaya.
+      const step=Math.min(PROCESS_STEPS.length-1,Math.floor(((tnow()%3000)/3000)*PROCESS_STEPS.length)), phase=PROCESS_STEPS[step];
+      $('stage').dataset.step=String(step);
+      $('proc-readout').textContent=formatAbs(core.absorbance(solution,nm));        // angka layar detektor
       setWorkProgress(22+p*68,`${title} · ${phase}`);
       $('hud-title').textContent=phase;
       $('hud-nm').textContent=`${fixedNm==null?Math.round(nm):formatPeak(nm)} nm${nm<400?' · UV':''}`; $('hud-nm').style.color=col; $('hud-bar').style.width=`${(p*100).toFixed(1)}%`; $('hud-bar').style.background=col;
       if (onProgress) onProgress(p,nm);
     });
     stopPulses();
-    $('scan-hud').hidden=true; showBeam(false);
+    state.sweeping=false; setPaused(false); $('pause-button').hidden=true;
+    delete $('stage').dataset.step; $('proc-readout').textContent=formatAbs(0);
+    $('scan-hud').hidden=true; if(see) showBeam(false);
     setWorkProgress(95,'Detektor mengirim hasil ke software');
-    await tween(500,p=>{ setLidGhost(1-p); setMonoGhost(1-p); });
-    if (cam) { viewer.cameraOrbit=cam.orbit; viewer.cameraTarget=cam.target; }     // kembali ke sudut semula
+    if(see) await tween(500,p=>{ setShellGhost(1-p); });
+    if (cam && see) { viewer.cameraOrbit=cam.orbit; viewer.cameraTarget=cam.target; }     // kembali ke sudut semula
     await wait(reduced()?0:700);
   }
   // Warna berkas = warna panjang gelombang yang sedang dipindai. UV (<400 nm) tidak terlihat mata,
@@ -408,7 +518,8 @@
       const k=Math.exp(-Math.pow((e-mid)/w,2));
       setMaterial(n,[...col,(.3+.65*k)*L]); setEmissive(n,col.map(v=>v*(.4+.9*k)));
     }
-    for (const n of ['SplitterGlass','LensGlass']) setMaterial(n,[.74,.9,1,.34*L]);
+    for (const n of ['SplitterGlass','LensGlass','CondenserGlass']) setMaterial(n,[.74,.9,1,.34*L]);
+    setMaterial('DetectorDisplayGlow',[1,.12,.08,.95*L]); setEmissive('DetectorDisplayGlow',[1,.12,.08]);   // layar merah detektor menyala
     setMaterial('MonoPrismGlass',[.10,.12,.15,L]);   // prisma abu-abu pekat (opak) agar jelas terlihat
     setFanAngle(nm);
     // sesudah celah: satu berkas satu warna menuju pembagi berkas
@@ -432,7 +543,8 @@
     for (const n of ['SelectedBeam','SelectedGlow']) setMaterial(n,[1,1,1,0]);
     if (rotor) { rotor.rotation.y=0; rotor.position.z=rotorZ0; }
     for (const [n,col] of BANDS) { setMaterial(n,[...col,0]); setEmissive(n,col); }
-    for (const n of ['MonoPrismGlass','SplitterGlass','LensGlass']) setMaterial(n,[.74,.9,1,0]);
+    for (const n of ['MonoPrismGlass','SplitterGlass','LensGlass','CondenserGlass']) setMaterial(n,[.74,.9,1,0]);
+    setMaterial('DetectorDisplayGlow',[1,.12,.08,0]);
     setEmissive('BlankLiquid',[0,0,0]); setEmissive('SampleLiquid',[0,0,0]);
     setMaterial('ReferenceBeam',[.39,.83,.98,0]); setEmissive('ReferenceBeam',[.14,.37,.45]);
     setMaterial('SampleBeam',[1,.68,.29,0]); setEmissive('SampleBeam',[.45,.24,.06]);
@@ -892,12 +1004,22 @@
     state.measuring=true;state.currentScan=null;state.blanked=false;state.zeroGroup=null;updateControls();
     setWorkProgress(0,'Menyiapkan standar untuk scan λmaks');
     try {
-      // Kurva dipindai dari larutan standar berkonsentrasi tinggi agar puncaknya jelas.
-      if(solution.family!=='standar' || !(solution.targetAbs>.1)) {
-        await setLid(true);
-        await swapCuvette('Sample','std-25');
-        solution=getSolution('std-25');
-      }
+      // Urutan mengikuti instruksi kerja: kedua kuvet aquades → Zero & Baseline → ganti ke standar → START scan.
+      await setLid(true);
+      if(state.selected!=='aquades')await swapCuvette('Sample','aquades');
+      const base=core.spectrum(core.solutions[0],start,end,4);
+      status('Zero & Baseline: aquades di kedua kuvet, garis dasar direkam 400–200 nm.');
+      let bdrawn=0;
+      await opticalSweep(core.solutions[0],1500,'Zero & Baseline',(p,nm)=>{
+        const now=performance.now();if(now-bdrawn<90&&p<1)return;bdrawn=now;
+        state.currentScan={solutionId:'aquades',name:'Aquades',baseline:true,start,end,points:base};
+        state.wavelength=nm;drawSpectrum();
+      });
+      await setLid(true);
+      setWorkProgress(5,'Mengganti kuvet depan dengan Standar 25 ppm');
+      await swapCuvette('Sample','std-25');
+      solution=getSolution('std-25');
+      state.currentScan=null;drawSpectrum();
       const points=core.spectrum(solution,start,end,2);
       status('Scan λmaks: monokromator memindai 200–400 nm, kurva Abs terhadap panjang gelombang digambar.');
       let drawn=0;
@@ -1019,6 +1141,74 @@
   $('sample-weight').addEventListener('input',updateControls);
   $('lid-button').addEventListener('click',()=>setLid(!state.lidOpen));
   $('reset-view').addEventListener('click',resetView);
+  // ---- Nomor bagian sesuai callout brosur Cary 100/300. Klik nomor saat animasi dijeda untuk penjelasan dan zoom otomatis.
+  const CALLOUTS=[
+    ['Biaya kepemilikan rendah','Optik tersegel mencegah paparan lingkungan korosif, memperpanjang umur alat dan menekan biaya servis.','200deg 62deg 1.2m','0m .15m 0m'],
+    ['Premonokromator memperluas rentang','Cary 300 memiliki premonokromator yang memperluas rentang fotometrik linear hingga lebih dari 6,0 Abs. Cary 100 bekerja hingga lebih dari 4,0 Abs.','200deg 50deg .40m','.262m .26m .19m'],
+    ['Tanpa pergeseran puncak','Penggerak panjang gelombang terkunci fasa mencegah pergeseran puncak dan penekanan puncak pada kecepatan scan tinggi.','160deg 50deg .40m','.31m .13m -.04m'],
+    ['Celah variabel','Memberi kontrol optimum atas resolusi spektrum.','195deg 50deg .32m','.136m .26m .17m'],
+    ['Kompartemen sampel besar','Memberi fleksibilitas lebih untuk ukuran sampel.','180deg 48deg .62m','-.166m .25m -.027m'],
+    ['Optik berlapis kuarsa','Melindungi optik dari lingkungan sehingga kinerja optik terjaga sepanjang umur alat.','200deg 50deg .45m','.36m .27m .25m'],
+    ['Pilihan mode','Meski berkas ganda (double beam), alat dapat dioperasikan dalam mode berkas tunggal, ganda, atau dual-single untuk memperluas kapasitas sampling.','180deg 48deg .48m','-.10m .25m -.027m'],
+    ['Pengendali aksesori','Pengendali aksesori mengatur aksesori Agilent dan pihak ketiga secara terpusat.','150deg 55deg .55m','-.44m .10m .17m'],
+    ['Desain optik unggul','Chopper ganda memastikan berkas sampel dan referensi mengenai detektor pada titik yang sama, sehingga galat akibat ketidakseragaman detektor hilang.','200deg 50deg .32m','.115m .24m .185m'],
+  ];
+  function openCallout(i) {
+    state.callout=i;
+    document.querySelectorAll('.callout').forEach(b=>b.classList.toggle('active',Number(b.dataset.callout)===i));
+    $('part-number').textContent=`BAGIAN ${i+1} / ${CALLOUTS.length} · BROSUR CARY`;
+    $('part-title').textContent=CALLOUTS[i][0]; $('part-copy').textContent=CALLOUTS[i][1];
+    const card=$('part-card'); card.hidden=false;
+    const w=card.offsetWidth||255; card.style.left=`${Math.max(12,$('stage').clientWidth-w-12)}px`; card.style.top='112px';
+    viewer.cameraOrbit=CALLOUTS[i][2]; viewer.cameraTarget=CALLOUTS[i][3];
+  }
+  function closeCallout() {
+    if(state.callout<0)return;
+    state.callout=-1;
+    document.querySelectorAll('.callout').forEach(b=>b.classList.remove('active'));
+    $('part-card').hidden=true;
+  }
+  document.querySelectorAll('.callout').forEach(b=>b.addEventListener('click',e=>{ if(!state.paused)return; e.stopPropagation(); openCallout(Number(b.dataset.callout)); }));
+  $('pause-button').addEventListener('click',()=>setPaused(!state.paused));
+
+  // ---- Panel zoom / putar / geser: tahan tombol untuk bergerak terus, tanpa klik berulang.
+  let vpMode='rotate', vpGoal=null, vpLast=0;
+  function vpStep(act) {
+    const now=performance.now();
+    if(!vpGoal || now-vpLast>600) { try { const o=viewer.getCameraOrbit(), t=viewer.getCameraTarget(); vpGoal={th:o.theta,ph:o.phi,r:o.radius,x:t.x,y:t.y,z:t.z}; } catch { return; } }
+    vpLast=now;
+    const g=vpGoal, k=.05;
+    if(act==='zin') g.r=Math.max(.26,g.r*.96);
+    else if(act==='zout') g.r=Math.min(3.2,g.r*1.04);
+    else if(vpMode==='rotate') {
+      if(act==='left') g.th-=k; if(act==='right') g.th+=k;
+      if(act==='up') g.ph=Math.max(.15,g.ph-k); if(act==='down') g.ph=Math.min(1.5,g.ph+k);
+    } else {
+      const d=g.r*.02, rx=Math.cos(g.th), rz=-Math.sin(g.th), ux=-Math.cos(g.ph)*Math.sin(g.th), uy=Math.sin(g.ph), uz=-Math.cos(g.ph)*Math.cos(g.th);
+      const sx=act==='left'?-1:act==='right'?1:0, sy=act==='up'?1:act==='down'?-1:0;
+      g.x=Math.max(-.7,Math.min(.7,g.x+(rx*sx+ux*sy)*d)); g.y=Math.max(-.1,Math.min(.6,g.y+uy*sy*d)); g.z=Math.max(-.7,Math.min(.7,g.z+(rz*sx+uz*sy)*d));
+    }
+    viewer.cameraOrbit=`${g.th}rad ${g.ph}rad ${g.r}m`; viewer.cameraTarget=`${g.x}m ${g.y}m ${g.z}m`;
+  }
+  let vpTimer=null;
+  const vpStop=()=>{ clearInterval(vpTimer); vpTimer=null; document.querySelectorAll('#view-pad .hold').forEach(b=>b.classList.remove('hold')); };
+  document.querySelectorAll('#view-pad .vp-mode button').forEach(b=>b.addEventListener('click',()=>{
+    vpMode=b.dataset.mode; document.querySelectorAll('#view-pad .vp-mode button').forEach(x=>x.classList.toggle('active',x===b));
+  }));
+  document.querySelectorAll('#view-pad [data-act]').forEach(b=>{
+    b.addEventListener('pointerdown',e=>{
+      e.preventDefault(); const act=b.dataset.act;
+      if(act==='reset') {
+        vpGoal=null;
+        if(state.paused) { const sv=scanView(); viewer.cameraOrbit=sv.orbit; viewer.cameraTarget=sv.target; } else resetView();
+        return;
+      }
+      b.classList.add('hold'); vpStep(act); vpStop(); b.classList.add('hold'); vpTimer=setInterval(()=>vpStep(act),45);
+    });
+    for(const ev of ['pointerup','pointerleave','pointercancel']) b.addEventListener(ev,vpStop);
+  });
+
+  $('mode-button').addEventListener('click',()=>setTransparent(!state.transparent));
   $('zero-button').addEventListener('click',zero);
   $('scan-button').addEventListener('click',scan);
   $('parts-toggle').addEventListener('click',()=>{
@@ -1031,7 +1221,7 @@
     event.stopPropagation();focusPart(Number(button.dataset.part));
     if(button.dataset.part==='6')powerInstrument();
   }));
-  $('close-part').addEventListener('click',resetView);
+  $('close-part').addEventListener('click',()=>{ if(state.callout>=0) closeCallout(); else resetView(); });
   viewer.addEventListener('camera-change',positionPartCard);
   window.addEventListener('resize',positionPartCard);
   viewer.addEventListener('load',()=>{

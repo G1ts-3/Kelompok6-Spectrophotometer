@@ -55,10 +55,10 @@
       <h3>B. Mencari panjang gelombang maks (Scan)</h3>
       <ol start="6">
         <li>Klik <b>▶ Buka Cary WinUV</b> pada monitor dan tunggu hingga alat berstatus online.</li>
-        <li>Pilih <b>Seri 1</b> atau <b>Seri 2</b> pada layar monitor, lalu klik <b>START scan λmaks</b>. Kurva Abs terhadap panjang gelombang digambar; puncaknya menjadi λmaks (seri 1 otomatis 246,5 nm, seri 2 248,0 nm).</li>
+        <li>Pilih <b>Seri 1</b> atau <b>Seri 2</b> pada layar monitor, lalu klik <b>START scan λmaks</b>. Alat mengisi kedua kuvet dengan aquades, merekam Zero dan Baseline, lalu memindai standar. Kurva Abs terhadap panjang gelombang digambar; puncaknya menjadi λmaks (seri 1 otomatis 246,5 nm, seri 2 248,0 nm).</li>
         <li>Isi kedua kuvet dengan blanko aquades (kuvet merah di belakang), lalu klik <b>01 · Zero blanko</b>.</li>
         <li>Ganti kuvet depan (abu) dengan salah satu standar dari baki <b>Ganti kuvet</b>, lalu klik <b>02 · START ukur</b>.</li>
-        <li>Tunggu proses scanning selesai. Spektrum dan puncak serapan tampil pada tab <b>Spektrum</b>.</li>
+        <li>Tunggu proses scanning selesai. Spektrum dan puncak serapan tampil pada tab <b>Spektrum</b>. Saat saklar <b>Transparan</b> aktif, badan alat menjadi tembus pandang selama scan; tombol <b>Jeda</b> menghentikan animasi untuk menjelaskan tiap bagian.</li>
       </ol>
       <h3>C. Konsentrasi (kurva kalibrasi dan sampel)</h3>
       <ol start="11">
@@ -93,8 +93,8 @@
       <div class="tray-group"><span class="group-label">DERET SAMPEL </span><div id="sample-solutions" class="series-list"></div></div>
     </section>
       <section class="instrument-section" aria-label="Model instrumen interaktif">
-        <div class="stage" id="stage">
-          <div class="stage-top"><span class="stage-label">INSTRUMEN <b>01</b> / CARY 100</span><span class="stage-hint">Seret untuk memutar · scroll untuk zoom</span></div>
+        <div class="stage transparent" id="stage">
+          <div class="stage-top"><div class="stage-left"><button class="theme-toggle" id="mode-button" role="switch" aria-checked="true" title="Aktif: saat scan, alat menjadi transparan dan jalur cahaya di dalamnya beranimasi. Mati: alat tampil biasa."><span class="tt-track"><i></i></span><span class="tt-text">Transparan</span></button><span class="stage-label">INSTRUMEN <b>01</b> / CARY 100</span></div><span class="stage-hint">Seret untuk memutar · scroll untuk zoom</span></div>
           <model-viewer id="instrument" src="spectrophotometer.glb" alt="Model tiga dimensi instrumen spektrofotometer UV–Vis dengan dua kuvet berbaris depan-belakang dan tutup ruang sampel" camera-controls touch-action="pan-y" interaction-prompt="none" camera-orbit="180deg 65deg 1.7m" camera-target="0m 0.17m 0m" min-camera-orbit="auto 0deg 0.25m" max-camera-orbit="auto 90deg auto" min-field-of-view="18deg" max-field-of-view="58deg" field-of-view="30deg" shadow-intensity="1" shadow-softness=".8" exposure=".95" tone-mapping="neutral">
             <button class="hotspot" slot="hotspot-1" data-position="-0.008m 0.288m -0.027m" data-normal="0m 1m 0m" data-part="0" aria-label="Sumber cahaya di sisi kiri">1</button>
             <button class="hotspot" slot="hotspot-2" data-position="-0.073m 0.288m -0.027m" data-normal="0m 1m 0m" data-part="1" aria-label="Monokromator">2</button>
@@ -103,22 +103,39 @@
             <button class="hotspot" slot="hotspot-5" data-position="-0.320m 0.285m -0.027m" data-normal="0m 1m 0m" data-part="4" aria-label="Detektor di sisi kanan">5</button>
             <button class="hotspot" slot="hotspot-6" data-position="-0.166m 0.21m -0.212m" data-normal="0m 0m -1m" data-part="5" aria-label="Penutup sampel">6</button>
             <button class="hotspot" slot="hotspot-7" data-position="0.496m 0.078m -0.45m" data-normal="0m 0m -1m" data-part="6" aria-label="Tombol daya">7</button>
+            <div class="proc-label callout" slot="hotspot-c1" data-position="0.42m 0.20m -0.37m" data-normal="0m 1m 0m" data-callout="0" role="button" tabindex="-1" aria-label="Bagian 1"><b>1</b></div>
+            <div class="proc-label callout" slot="hotspot-c2" data-position="0.262m 0.31m 0.20m" data-normal="0m 1m 0m" data-step="1" data-callout="1" role="button" tabindex="-1" aria-label="Bagian 2"><b>2</b></div>
+            <div class="proc-label callout" slot="hotspot-c3" data-position="0.31m 0.17m -0.04m" data-normal="0m 1m 0m" data-step="1" data-callout="2" role="button" tabindex="-1" aria-label="Bagian 3"><b>3</b></div>
+            <div class="proc-label callout" slot="hotspot-c4" data-position="0.136m 0.31m 0.17m" data-normal="0m 1m 0m" data-step="2" data-callout="3" role="button" tabindex="-1" aria-label="Bagian 4"><b>4</b></div>
+            <div class="proc-label callout" slot="hotspot-c5" data-position="-0.166m 0.27m -0.23m" data-normal="0m 1m 0m" data-step="4" data-callout="4" role="button" tabindex="-1" aria-label="Bagian 5"><b>5</b></div>
+            <div class="proc-label callout" slot="hotspot-c6" data-position="0.36m 0.33m 0.30m" data-normal="0m 1m 0m" data-step="0" data-callout="5" role="button" tabindex="-1" aria-label="Bagian 6"><b>6</b></div>
+            <div class="proc-label callout" slot="hotspot-c7" data-position="-0.10m 0.29m -0.027m" data-normal="0m 1m 0m" data-step="3" data-callout="6" role="button" tabindex="-1" aria-label="Bagian 7"><b>7</b></div>
+            <div class="proc-label callout" slot="hotspot-c8" data-position="0.44m 0.13m 0.17m" data-normal="0m 1m 0m" data-callout="7" role="button" tabindex="-1" aria-label="Bagian 8"><b>8</b></div>
+            <div class="proc-label callout" slot="hotspot-c9" data-position="0.115m 0.31m 0.185m" data-normal="0m 1m 0m" data-step="3" data-callout="8" role="button" tabindex="-1" aria-label="Bagian 9"><b>9</b></div>
+            <div class="proc-label proc-chip" slot="hotspot-pi0" data-position="-0.125m 0.300m -0.107m" data-normal="0m 1m 0m" data-step="4">I₀</div>
+            <div class="proc-label proc-chip" slot="hotspot-pit" data-position="-0.235m 0.300m -0.107m" data-normal="0m 1m 0m" data-step="5">Iₜ</div>
+            <div class="proc-label proc-readout-wrap" slot="hotspot-pdet" data-position="-0.320m 0.295m -0.027m" data-normal="0m 1m 0m" data-step="5"><span class="proc-readout" id="proc-readout">0.000</span></div>
           </model-viewer>
           <div class="scan-hud" id="scan-hud" hidden role="status"><span class="hud-dot"></span><b id="hud-title">Scanning</b><span id="hud-nm">200 nm</span><i><em id="hud-bar"></em></i></div>
-          <div class="scan-optics" aria-hidden="true"><span>SATU PANJANG GELOMBANG · DUA JALUR</span><i></i><small>Kiri: sumber → monokromator (prisma) → celah hitam (slit) → pembagi berkas</small><small>Dua kuvet (blanko &amp; sampel) → detektor di kanan</small></div>
+          <div class="scan-optics" aria-hidden="true"><span>NOMOR BAGIAN · SESUAI BROSUR CARY 100/300</span><i></i><small>1 Biaya rendah · 2 Premonokromator · 3 Tanpa geser puncak · 4 Celah variabel · 5 Kompartemen sampel besar · 6 Optik berlapis kuarsa · 7 Pilihan mode · 8 Pengendali aksesori · 9 Chopper ganda</small><small>Jeda lalu klik nomor untuk penjelasan; pakai panel kanan untuk zoom, putar, dan geser.</small></div>
           <div class="part-card" id="part-card" hidden><button id="close-part" aria-label="Tutup penjelasan">×</button><span id="part-number"></span><strong id="part-title"></strong><p id="part-copy"></p></div>
+          <div class="view-pad" id="view-pad" aria-label="Kontrol tampilan 3D">
+            <div class="vp-mode" role="group" aria-label="Mode gerak"><button type="button" data-mode="rotate" class="active">Putar</button><button type="button" data-mode="pan">Geser</button></div>
+            <div class="vp-dpad"><span></span><button type="button" data-act="up" aria-label="Atas">▲</button><span></span><button type="button" data-act="left" aria-label="Kiri">◀</button><button type="button" data-act="reset" aria-label="Atur ulang sudut pandang">↺</button><button type="button" data-act="right" aria-label="Kanan">▶</button><span></span><button type="button" data-act="down" aria-label="Bawah">▼</button><span></span></div>
+            <div class="vp-zoom"><button type="button" data-act="zin" aria-label="Perbesar">＋</button><button type="button" data-act="zout" aria-label="Perkecil">－</button></div>
+          </div>
           <div class="stage-bottom">
             <div class="stage-actions">
               <button class="soft-button" id="lid-button" aria-pressed="false"><span aria-hidden="true">◫</span> Buka tutup</button>
               <button class="soft-button" id="instrument-power" aria-pressed="false"><span class="tiny-led"></span> Nyalakan alat</button>
               <button class="icon-button" id="reset-view" aria-label="Atur ulang sudut pandang" title="Atur ulang sudut pandang">↺</button>
             </div>
-            <button class="parts-button" id="parts-toggle" aria-pressed="false">Kenali bagian <span>ⓘ</span></button>
+            <div class="stage-right-actions"><button class="soft-button" id="pause-button" hidden aria-pressed="false"><span aria-hidden="true">⏸</span> <span id="pause-label">Jeda</span></button><button class="parts-button" id="parts-toggle" aria-pressed="false">Kenali bagian <span>ⓘ</span></button></div>
           </div>
         </div>
         <div class="flow-strip" aria-label="Jalur cahaya dalam instrumen">
           <span class="flow-caption">DI DALAM ALAT</span>
-          <span>Sumber cahaya (kiri)</span><i aria-hidden="true"></i><span>Monokromator (prisma + celah)</span><i aria-hidden="true"></i><span>Blanko + sampel</span><i aria-hidden="true"></i><span>Detektor (kanan)</span>
+          <span>Source (sumber cahaya)</span><i aria-hidden="true"></i><span>Condenser</span><i aria-hidden="true"></i><span>Monochromator (prisma)</span><i aria-hidden="true"></i><span>Slit</span><i aria-hidden="true"></i><span>Sample Holder (I₀ → Iₜ)</span><i aria-hidden="true"></i><span>Detector</span>
         </div>
       </section>
 

@@ -351,8 +351,7 @@
 .proc-label b{display:grid;place-items:center;width:23px;height:23px;border-radius:50%;border:2px solid #fff;background:#12384c;color:#fff;font:700 11px var(--mono);box-shadow:0 3px 9px #0c2230aa;transition:transform .25s,background .25s}
 .proc-chip{padding:2px 7px;border-radius:6px;background:#fffffff0;color:#12384c;font:700 12px var(--mono);box-shadow:0 3px 9px #0c223099}
 .proc-readout{display:inline-block;min-width:58px;padding:3px 8px;border:1px solid #5a1a16;border-radius:4px;background:#170606;color:#ff3a2d;font:700 14px var(--mono);text-align:center;text-shadow:0 0 7px #ff3a2d;box-shadow:0 3px 9px #0c223099}
-.stage[data-step="0"] .proc-label[data-step="0"] b,.stage[data-step="1"] .proc-label[data-step="1"] b,.stage[data-step="2"] .proc-label[data-step="2"] b,
-.stage[data-step="3"] .proc-label[data-step="3"] b,.stage[data-step="4"] .proc-label[data-step="4"] b,.stage[data-step="5"] .proc-label[data-step="5"] b{background:#f0b400;color:#1b2a33;transform:scale(1.3)}
+.stage[data-step="0"] .proc-label.callout[data-callout="0"] b,.stage[data-step="1"] .proc-label.callout[data-callout="1"] b,.stage[data-step="2"] .proc-label.callout[data-callout="2"] b,.stage[data-step="3"] .proc-label.callout[data-callout="3"] b,.stage[data-step="4"] .proc-label.callout[data-callout="4"] b,.stage[data-step="5"] .proc-label.callout[data-callout="5"] b,.stage[data-step="6"] .proc-label.callout[data-callout="6"] b,.stage[data-step="7"] .proc-label.callout[data-callout="7"] b,.stage[data-step="8"] .proc-label.callout[data-callout="8"] b{background:#f0b400;color:#1b2a33;transform:scale(1.3)}
 .stage[data-step="4"] .proc-chip[data-step="4"],.stage[data-step="5"] .proc-chip[data-step="5"]{background:#f0b400}
 
 .stage-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -385,3 +384,5 @@
 .scan-hud b{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stage.paused .scan-optics{max-width:calc(100% - 200px)}
 .scan-optics small{white-space:normal}
+
+.solution.locked{opacity:.45;cursor:not-allowed;filter:grayscale(.5)}

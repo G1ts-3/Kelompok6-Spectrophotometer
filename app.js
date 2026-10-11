@@ -59,6 +59,29 @@
     return i>=0 && i<list.length-1 ? list[i+1] : null;
   }
 
+  // Urutan wajib menaik (ppm / bobot): hanya larutan berikutnya yang boleh dipasang, tanpa pindah otomatis.
+  const doneIds={};
+  const doneKey=(family,key)=>`${key}:${family}`;
+  const isOrdered=s=>!s.custom&&!s.archived&&!!sequences[s.family];
+  function allowedNext(family,key) {
+    const list=sequences[family],done=doneIds[doneKey(family,key)]||new Set();
+    return list.find(id=>!done.has(id))||list[0];
+  }
+  function markDone(solution) {
+    if(!isOrdered(solution))return;
+    const k=doneKey(solution.family,core.datasetKey);
+    const done=doneIds[k]||(doneIds[k]=new Set());
+    if(done.size>=sequences[solution.family].length)done.clear();
+    done.add(solution.id);
+  }
+  function updateOrderLocks() {
+    document.querySelectorAll('.solution[data-solution]').forEach(b=>{
+      const s=getSolution(b.dataset.solution);
+      const lock=isOrdered(s)&&b.dataset.dataset&&allowedNext(s.family,b.dataset.dataset)!==s.id;
+      b.classList.toggle('locked',!!lock);b.setAttribute('aria-disabled',String(!!lock));
+    });
+  }
+
   function loadHistory() {
     try {
       const saved=JSON.parse(localStorage.getItem('uvvis-history-v3')||'[]');
@@ -173,7 +196,7 @@
       `Seri ${core.datasetKey==='praktikum'?'1':'2'} dipilih. Scan 200–400 nm; puncak tertinggi kurva menjadi λmaks yang dipakai untuk pengukuran.`:
       `λ ${formatPeak(state.confirmedPeaks[core.datasetKey])} nm · blanko aquades · deret standar 0–25 mg/L · sampel Presisi 1–5 dan Akurasi.`;
     $('lambda-entry').hidden=!finding;
-    $('scan-lambda').disabled=!ready || busy();
+    $('scan-lambda').disabled=!ready || busy() || state.requiresSelection || state.selected==='aquades';
     $('scan-lambda').firstChild.textContent=state.measuring&&finding?'Memindai… ':'START scan λmaks ';
     $('lambda-hint').textContent=`Seri ${core.datasetKey==='praktikum'?'1':'2'} · sumbu X panjang gelombang (nm), sumbu Y absorbansi. Puncak kurva = λmaks.`;
     $('run-controls').hidden=finding;
@@ -181,14 +204,14 @@
     if (state.upsOn&&state.instrumentOn&&state.pcuOn&&state.softwareOpen&&!state.seriesPicked) next='Pilih seri 1 atau seri 2 pada layar monitor.';
     else if (!ready) next='Nyalakan UPS → alat → PCU, lalu buka software.';
     else if (busy()) next=state.filling?'Menukar kuvet; tunggu sampai selesai…':'Alat sedang bekerja; tunggu hasilnya…';
-    else if (finding) next='Tekan START scan λmaks; puncak kurva akan menentukan λmaks.';
+    else if (finding) next=(state.requiresSelection||state.selected==='aquades')?'Pilih larutan standar di baki kiri dahulu, lalu tekan START scan λmaks.':'Tekan START scan λmaks; puncak kurva akan menentukan λmaks.';
     else if (state.requiresSelection) next='Pilih larutan baru dari baki di kiri.';
     else if (!state.blanked) next='Tekan Zero blanko untuk mulai pengukuran konsentrasi.';
     else if (getSolution(state.selected).family==='sampel' && parsePositiveDecimal($('sample-weight').value)===null) next='Isi bobot sampel positif pada komputer sebelum START ukur.';
     else if (getSolution(state.selected).custom && !manualAbsText(getSolution(state.selected))) next='Isi Abs manual sampel tambahan pada komputer sebelum START ukur.';
     else if (getSolution(state.selected).family==='sampel' && $('manual-abs').value.trim() && !manualAbsText(getSolution(state.selected))) next='Perbaiki angka Abs manual; gunakan angka nonnegatif.';
     else next='Tekan START ukur. Grafik, Abs, dan progres alat akan muncul.';
-    $('next-instruction').textContent=next;
+    $('next-instruction').textContent=next;updateOrderLocks();
     $('zero-button').disabled=!ready || !applied || state.requiresSelection || busy();
     const selected=getSolution(state.selected), sample=selected.family==='sampel';
     const invalidAbs=sample && ((selected.custom && !manualAbsText(selected)) || (!!$('manual-abs').value.trim() && !manualAbsText(selected)));
@@ -355,7 +378,7 @@
   function animateInside(now) {
     const rg=getRig(); if(!rg) return; const t=now/1000;
     for(const it of rg.items) {
-      const u=(t*.24/Math.max(it.len,.25)+it.off)%1; let d=u*it.len, i=0;
+      const u=(t*.07/Math.max(it.len,.25)+it.off)%1; let d=u*it.len, i=0;
       while(i<it.segs.length-1 && d>it.segs[i]){ d-=it.segs[i]; i++; }
       const f=it.segs[i]?Math.min(1,d/it.segs[i]):0, a=it.pts[i], b=it.pts[i+1];
       it.m.position.set(a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f);
@@ -379,7 +402,7 @@
     const loop=now=>{
       if (!alive) return;
       animateInside(tnow());
-      const ph=(tnow()/1000*.85)%1, xs=.213-ph*.183;
+      const ph=(tnow()/1000*.25)%1, xs=.213-ph*.183;
       nodes.forEach(([name,n],i)=>{
         if (!n) return;
         n.o.position.x=n.x0+(xs-.213);
@@ -429,7 +452,7 @@
     $('progress-fill').style.width=`${value}%`;
     $('progress-meter').setAttribute('aria-valuenow',String(value));
   }
-  const PROCESS_STEPS=['Lampu dan cermin kuarsa','Premonokromator · kisi memilih λ','Celah variabel · satu λ lolos','Chopper ganda · sampel dan referensi','Kompartemen sampel · I₀ → Iₜ','Detektor · membaca Iₜ'];
+  const PROCESS_STEPS=['1 · Biaya rendah','2 · Premonokromator','3 · Tanpa geser puncak','4 · Celah variabel','5 · Kompartemen sampel besar · I₀ → Iₜ','6 · Optik berlapis kuarsa','7 · Pilihan mode','8 · Pengendali aksesori','9 · Chopper ganda'];
   function scrollToChart(top=false) {
     const sc=document.querySelector('.software-scroll'), card=document.querySelector('.chart-card');
     if(!sc||!card)return;
@@ -462,12 +485,13 @@
       state.sweeping=true; $('pause-button').hidden=false;      // tombol Jeda baru muncul saat animasi benar-benar berjalan
     }
     $('scan-hud').hidden=false;
+    const stepT0=tnow(), stepMs=Math.max(700,ms/PROCESS_STEPS.length);   // satu putaran 1→9 selama satu scan
     await tween(ms,p=>{
       const nm=from+(to-from)*p;
       const col=see?css(beamLook(nm,solution)):css(nmToRgb(nm));
       // Urutan proses mengikuti diagram: Source → Condenser → Monochromator → Slit → Sample Holder → Detector.
-      // Sorotan bergerak kiri → kanan satu putaran tiap 3 dtk, searah jalur cahaya.
-      const step=Math.min(PROCESS_STEPS.length-1,Math.floor(((tnow()%3000)/3000)*PROCESS_STEPS.length)), phase=PROCESS_STEPS[step];
+      // Sorotan kuning menyala berurutan dari nomor 1 sampai 9 (satu putaran penuh tiap scan).
+      const step=Math.min(PROCESS_STEPS.length-1,Math.floor(((tnow()-stepT0)%(PROCESS_STEPS.length*stepMs))/stepMs)), phase=PROCESS_STEPS[step];
       $('stage').dataset.step=String(step);
       $('proc-readout').textContent=formatAbs(core.absorbance(solution,nm));        // angka layar detektor
       setWorkProgress(22+p*68,`${title} · ${phase}`);
@@ -713,10 +737,17 @@
     if (!state.blanked) return `${head} Jalankan Zero blanko lagi, karena kelompok larutan berubah.`;
     return `${head} Tekan Mulai scan.`;
   }
-  async function chooseSolution(id,datasetKey) {
+  async function chooseSolution(id,datasetKey,noSwap=false) {
     if (busy()) return;
     const solution=getSolution(id);
     if(solution.archived)return;
+    if (isOrdered(solution)&&!noSwap) {
+      const need=allowedNext(solution.family,datasetKey);
+      if (need!==solution.id) {
+        status(`Urutan harus menaik dari kecil ke besar: pasang ${getSolution(need).name} dahulu, tidak bisa langsung ke ${solution.name}.`);
+        return;
+      }
+    }
     if (solution.family!=='blanko' && datasetKey!==core.datasetKey) {
       if (!core.setDataset(datasetKey)) return;
       applyMassOverrides();
@@ -736,9 +767,10 @@
     $('operation-progress').hidden=true;
     if (solution.family==='blanko') {state.blanked=false;state.zeroed=false;state.zeroGroup=null;}
     else {
-      state.queueId=id;state.requiresSelection=false;
+      if(noSwap)state.requiresSelection=true;else{state.queueId=id;state.requiresSelection=false;}
       if (state.zeroGroup!==solution.family) {state.blanked=false;state.zeroGroup=null;}
     }
+    if(noSwap){updateControls();return;}
     state.filling=true;updateControls();
     const slot=solution.family==='blanko'?'Blank':'Sample';
     status(`Mengganti kuvet ${slot==='Blank'?'blanko belakang':'sampel depan'}…`);
@@ -987,7 +1019,7 @@
     if(busy() || !state.softwareOpen || !Object.hasOwn(core.datasets,key))return;
     state.seriesPicked=true;
     updateControls();
-    await chooseSolution('std-0',key);
+    await chooseSolution('std-0',key,true);
     if(core.datasetKey!==key)return;
     const confirmed=state.confirmedPeaks[key];
     const has=Number.isFinite(confirmed);
@@ -995,12 +1027,13 @@
     state.range='uv';state.wavelength=has?confirmed:core.peakNm;
     state.blanked=false;state.zeroGroup=null;state.currentScan=null;
     updateFormula(null);drawSpectrum();drawCalibration();
-    status(has?`Seri ${key==='praktikum'?'1':'2'} dipilih; λmaks ${formatPeak(confirmed)} nm sudah ditemukan. Zero blanko sebelum START ukur.`:`Seri ${key==='praktikum'?'1':'2'} dipilih. Tekan START scan λmaks untuk mencari panjang gelombang maksimum dari puncak kurva.`);
+    status(has?`Seri ${key==='praktikum'?'1':'2'} dipilih; λmaks ${formatPeak(confirmed)} nm sudah ditemukan. Pilih larutan di baki, lalu Zero blanko.`:`Seri ${key==='praktikum'?'1':'2'} dipilih. Pilih larutan standar di baki kiri, lalu tekan START scan λmaks.`);
   }
   async function scanLambda() {
     if(busy() || !state.softwareOpen || !state.seriesPicked || !state.upsOn || !state.instrumentOn || !state.pcuOn || state.workflow!=='lambda')return;
     const key=core.datasetKey,[start,end]=ranges.uv;
     let solution=getSolution(state.selected);
+    const chosenId=state.selected!=='aquades'?state.selected:'std-0';   // larutan yang dipilih pengguna
     state.measuring=true;state.currentScan=null;state.blanked=false;state.zeroGroup=null;updateControls();
     setWorkProgress(0,'Menyiapkan standar untuk scan λmaks');
     try {
@@ -1010,7 +1043,7 @@
       const base=core.spectrum(core.solutions[0],start,end,4);
       status('Zero & Baseline: aquades di kedua kuvet, garis dasar direkam 400–200 nm.');
       let bdrawn=0;
-      await opticalSweep(core.solutions[0],1500,'Zero & Baseline',(p,nm)=>{
+      await opticalSweep(core.solutions[0],8000,'Zero & Baseline',(p,nm)=>{
         const now=performance.now();if(now-bdrawn<90&&p<1)return;bdrawn=now;
         state.currentScan={solutionId:'aquades',name:'Aquades',baseline:true,start,end,points:base};
         state.wavelength=nm;drawSpectrum();
@@ -1023,7 +1056,7 @@
       const points=core.spectrum(solution,start,end,2);
       status('Scan λmaks: monokromator memindai 200–400 nm, kurva Abs terhadap panjang gelombang digambar.');
       let drawn=0;
-      await opticalSweep(solution,3200,'Scan λmaks',(p,nm)=>{
+      await opticalSweep(solution,16000,'Scan λmaks',(p,nm)=>{
         const now=performance.now();if(now-drawn<90&&p<1)return;drawn=now;
         state.currentScan={solutionId:solution.id,name:solution.name,kind:'lambda',start,end,points:points.filter(q=>q.nm>=nm)};
         state.wavelength=nm;drawSpectrum();
@@ -1036,11 +1069,11 @@
       state.currentScan=record;state.lastResult=record;state.wavelength=top.nm;
       setWorkProgress(100,`Selesai · λmaks = ${formatPeak(top.nm)} nm (Abs ${formatAbs(top.abs,key)})`);
       drawSpectrum();drawCalibration();drawHistory();
-      status(`λmaks ditemukan: ${formatPeak(top.nm)} nm, titik puncak kurva. Menyiapkan Standar 0 ppm di kuvet depan…`);
-      await setLid(true);state.queueId='std-0';
-      await swapCuvette('Sample','std-0');
+      status(`λmaks ditemukan: ${formatPeak(top.nm)} nm, titik puncak kurva. Scan selesai.`);
+      state.queueId=chosenId;state.requiresSelection=false;
+      setCuvetteContents('Sample',chosenId);putInFront(chosenId);   // kembali ke larutan pilihan tanpa animasi
       state.workflow='concentration';state.range='uv';
-      status(`λmaks ${formatPeak(top.nm)} nm terpasang untuk seri ${core.datasets[key].label}. Klik tab 2 · Pengukuran, lalu Zero blanko sebelum START ukur.`);
+      status(`λmaks ${formatPeak(top.nm)} nm terpasang untuk seri ${core.datasets[key].label}. Klik tab 2 · Pengukuran, tekan Zero blanko.`);
     } finally {state.measuring=false;updateControls();}
   }
   async function zero() {
@@ -1061,7 +1094,7 @@
     status(`${title}: aquades di kedua kuvet; referensi sedang direkam…`);
     let drawn=0;
     try {
-      await opticalSweep(core.solutions[0],1300,title,(p,nm)=>{
+      await opticalSweep(core.solutions[0],7000,title,(p,nm)=>{
         const now=performance.now();if(now-drawn<90&&p<1)return;drawn=now;
         state.currentScan={solutionId:'aquades',name:'Aquades',baseline:true,start,end,points:base};
         state.wavelength=nm;drawSpectrum();
@@ -1070,7 +1103,8 @@
       state.blanked=true;state.zeroGroup=groupOf(target);
     } finally {
       await setLid(true);
-      if(state.selected==='aquades')await swapCuvette('Sample',target);
+      if(state.selected==='aquades')await swapCuvette('Sample',target);   // kembali otomatis ke larutan yang dipilih
+      state.queueId=target;
     }
     state.wavelength=state.confirmedPeaks[core.datasetKey];
     setWorkProgress(100,'Zero selesai · aquades sebagai referensi');
@@ -1098,7 +1132,7 @@
     const points=core.spectrum(measurement,start,end,4);
     let drawn=0;
     try {
-      await opticalSweep(measurement,1600,`Baca λ ${solution.name}`,(p,nm)=>{
+      await opticalSweep(measurement,9000,`Baca λ ${solution.name}`,(p,nm)=>{
         const now=performance.now();if(now-drawn<90&&p<1)return;drawn=now;
         state.currentScan={solutionId:solution.id,name:solution.name,kind:'concentration',start,end,points};
         state.wavelength=nm;drawSpectrum();
@@ -1111,13 +1145,12 @@
       state.currentScan=record;state.lastResult=record;state.wavelength=readNm;
       updateFormula(record);
       setWorkProgress(100,`Selesai · ${solution.name}: ${recordAbs(record)} Abs${manualText!==null?' (input manual)':''}`);
-      const nextId=nextInSequence(solution.id);
+      markDone(solution);
+      if(isOrdered(solution))state.requiresSelection=true;
       drawSpectrum();drawCalibration();drawHistory();
+      const nextId=isOrdered(solution)&&(doneIds[doneKey(solution.family,core.datasetKey)]||new Set()).size<sequences[solution.family].length?allowedNext(solution.family,core.datasetKey):null;
       if(nextId) {
-        const list=sequences[solution.family],next=getSolution(nextId);
-        status(`${solution.name} selesai. Menyiapkan ${next.name} di kuvet depan…`);
-        await setLid(true);state.queueId=nextId;await swapCuvette('Sample',nextId);
-        status(`${solution.name} selesai. ${next.name} sudah di kuvet depan (${list.indexOf(nextId)+1} dari ${list.length}); blanko tetap di belakang. Tekan Mulai scan.`);
+        status(`${solution.name} selesai. Pilih ${getSolution(nextId).name} di baki (harus berurutan), lalu tekan Mulai scan.`);
       } else if(solution.custom) {
         status(`${solution.name} selesai. Abs ${recordAbs(record)} adalah input manual; kurva di luar titik ukur merupakan ilustrasi. Pilih sampel lain bila ingin melanjutkan.`);
       } else if(sequences[solution.family]) {

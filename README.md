@@ -69,3 +69,11 @@ Begitu Zero blanko, START ukur, atau scan λmaks dimulai, tutup dan rumah monokr
 - Tombol Jeda/Lanjut di samping "Kenali bagian" (muncul saat animasi transparan berjalan) membekukan animasi, grafik, dan jam proses.
 - Panel kanan (hanya muncul saat dijeda): Putar/Geser, tombol panah, zoom plus/minus. Tahan tombol untuk bergerak terus; ↺ mengembalikan sudut pandang.
 - Isi alat disusun ulang: lampu, lensa besar, cermin datar/cekung, pra-monokromator, monokromator, chopper ganda, batang pemandu, kluster cermin, jalur turun ke modul detektor (cermin cekung hitam + tabung PMT), serta bola cahaya yang mengalir di sepanjang jalur merah.
+
+## Urutan pengukuran dan kecepatan animasi
+- Standar (0 → 25 ppm) dan sampel (Presisi 1 → 5, Akurasi) harus diukur berurutan dari kecil ke besar; kartu yang belum gilirannya tampak pudar dan tidak bisa dipasang (tidak bisa loncat, misalnya 5 ke 25).
+- Setelah satu larutan selesai diukur, alat tidak lagi memasang larutan berikutnya otomatis; pengguna memilih sendiri di baki.
+- Animasi scan (baseline, scan λmaks, baca λ) diperlambat sekitar 5 kali dari semula agar lebih jelas.
+- Saat scan transparan, sorotan kuning pada nomor bagian menyala berurutan 1 sampai 9 (satu putaran tiap scan), dan judul di HUD mengikuti nomor yang menyala.
+- Tidak ada pergantian kuvet sampel otomatis: setelah memilih seri, setelah scan λmaks, dan setelah START ukur, kuvet depan tidak diganti sendiri. Pengguna memilih larutan dari baki Pengecualian: setelah Zero blanko selesai, larutan yang tadi dipilih otomatis kembali ke kuvet depan, jadi tidak perlu diklik lagi.
+- Setelah memilih seri, START scan λmaks baru aktif sesudah larutan standar dipilih di baki. Setelah scan λmaks selesai, larutan pilihan itu langsung terpilih lagi (tanpa animasi ganti kuvet dan tanpa klik ulang), jadi Zero blanko bisa langsung ditekan. Scan λmaks memuat dua sapuan: Zero & Baseline aquades, lalu sapuan standar untuk mencari puncak.

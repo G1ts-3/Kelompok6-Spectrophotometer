@@ -77,3 +77,6 @@ Begitu Zero blanko, START ukur, atau scan λmaks dimulai, tutup dan rumah monokr
 - Saat scan transparan, sorotan kuning pada nomor bagian menyala berurutan 1 sampai 9 (satu putaran tiap scan), dan judul di HUD mengikuti nomor yang menyala.
 - Tidak ada pergantian kuvet sampel otomatis: setelah memilih seri, setelah scan λmaks, dan setelah START ukur, kuvet depan tidak diganti sendiri. Pengguna memilih larutan dari baki Pengecualian: setelah Zero blanko selesai, larutan yang tadi dipilih otomatis kembali ke kuvet depan, jadi tidak perlu diklik lagi.
 - Setelah memilih seri, START scan λmaks baru aktif sesudah larutan standar dipilih di baki. Setelah scan λmaks selesai, larutan pilihan itu langsung terpilih lagi (tanpa animasi ganti kuvet dan tanpa klik ulang), jadi Zero blanko bisa langsung ditekan. Scan λmaks memuat dua sapuan: Zero & Baseline aquades, lalu sapuan standar untuk mencari puncak.
+
+## Perbaikan layar monitor tertutup
+- Panel yang menempel di atas layar monitor kini hanya berisi **Langkah berikutnya** dan tombol (Zero blanko / START). Kolom **Bobot sampel**, **Abs input manual**, progres alat, dan pesan status ikut tergulir. Sebelumnya, saat sampel (Presisi/Akurasi) dipilih, panel itu memakai sekitar 320 dari 418 px tinggi layar sehingga grafik dan hasil tertutup walau sudah di-scroll.

@@ -160,16 +160,19 @@
                   <section id="panel-scan" role="tabpanel" aria-labelledby="tab-scan" class="software-panel">
                     <div class="workflow-switch" role="group" aria-label="Metode perangkat lunak"><button id="workflow-lambda" aria-pressed="true">1 · Cari λmaks</button><button id="workflow-concentration" aria-pressed="false" disabled>2 · Pengukuran</button></div>
                     <p class="workflow-setup" id="workflow-setup">Cari λmaks dari puncak kurva, lalu ukur standar dan sampel.</p>
-                    <div class="scan-action-dock">
-                      <div class="next-step" role="status"><span><small>LANGKAH BERIKUTNYA</small><strong id="next-instruction">Pilih seri 1 atau 2.</strong></span></div>
-                      <div class="lambda-entry" id="lambda-entry"><label>Cari panjang gelombang maksimum (λmaks)</label><div><button id="scan-lambda" class="primary-button" type="button">START scan λmaks <span aria-hidden="true">↗</span></button></div><small id="lambda-hint">Sumbu X panjang gelombang (nm), sumbu Y absorbansi. Puncak kurva = λmaks.</small></div>
+                                          <div class="scan-inputs">
                       <div class="weight-panel weight-entry" id="weight-panel" hidden><label for="sample-weight">Bobot sampel (g)</label><input id="sample-weight" type="text" inputmode="decimal" autocomplete="off" aria-describedby="weight-info"><small id="weight-info"></small></div>
                       <div class="weight-panel weight-entry" id="abs-entry" hidden><label for="manual-abs">Abs input manual</label><input id="manual-abs" type="text" inputmode="decimal" autocomplete="off" placeholder="Kosong = data asli" aria-describedby="manual-abs-info"><small id="manual-abs-info">Opsional untuk sampel data praktikum. Sampel tambahan wajib diisi.</small></div>
+                      </div>
+                      <div class="scan-action-dock">
+                      <div class="next-step" role="status"><span><small>LANGKAH BERIKUTNYA</small><strong id="next-instruction">Pilih seri 1 atau 2.</strong></span></div>
+                      <div class="lambda-entry" id="lambda-entry"><label>Cari panjang gelombang maksimum (λmaks)</label><div><button id="scan-lambda" class="primary-button" type="button">START scan λmaks <span aria-hidden="true">↗</span></button></div><small id="lambda-hint">Sumbu X panjang gelombang (nm), sumbu Y absorbansi. Puncak kurva = λmaks.</small></div>
                       <div class="run-controls" id="run-controls" hidden><button class="secondary-button" id="zero-button">01 · Zero blanko</button><button class="primary-button" id="scan-button">02 · START ukur <span aria-hidden="true">↗</span></button></div>
+                      </div>
                       <div class="operation-progress" id="operation-progress" hidden><div><strong id="progress-title">Progres alat</strong><span id="progress-value">0%</span></div><p id="progress-phase">Menunggu alat…</p><div class="progress-track" id="progress-meter" role="progressbar" aria-label="Progres kerja alat" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="progress-fill"></i></div></div>
                       <p class="inline-message" id="screen-status" role="status">Nyalakan UPS → alat → CPU, lalu buka software dan pilih seri 1 atau 2.</p>
-                    </div>
-                    <div class="screen-summary"><div><span class="micro-label">HASIL DI LAYAR</span><strong id="active-solution">Aquades</strong><small id="sample-weight-readout" class="sample-meta" hidden></small><small id="result-origin" class="sample-meta" hidden></small></div><div class="readout"><span class="micro-label"><span id="readout-caption">PADA λ</span> <span id="readout-nm">246,5</span> nm</span><strong id="readout-value">—</strong><small id="readout-unit">Abs</small></div></div>
+                    
+<div class="screen-summary"><div><span class="micro-label">HASIL DI LAYAR</span><strong id="active-solution">Aquades</strong><small id="sample-weight-readout" class="sample-meta" hidden></small><small id="result-origin" class="sample-meta" hidden></small></div><div class="readout"><span class="micro-label"><span id="readout-caption">PADA λ</span> <span id="readout-nm">246,5</span> nm</span><strong id="readout-value">—</strong><small id="readout-unit">Abs</small></div></div>
                     <div class="chart-card">
                       <div class="chart-heading"><span id="chart-title">Spektrum serapan</span><span class="chart-legend"><i></i> Absorbansi</span></div>
                       <svg id="spectrum-chart" viewBox="0 0 420 208" preserveAspectRatio="none" role="img" aria-label="Grafik spektrum absorbansi"><g id="chart-grid"></g><path id="chart-area"></path><path id="chart-line"></path><g id="chart-cursor"></g><g id="chart-labels"></g><rect id="chart-hit" x="38" y="10" width="370" height="166" fill="transparent"></rect></svg>

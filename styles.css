@@ -386,3 +386,10 @@
 .scan-optics small{white-space:normal}
 
 .solution.locked{opacity:.45;cursor:not-allowed;filter:grayscale(.5)}
+
+/* Panel yang menempel di atas layar hanya berisi langkah berikutnya dan tombol (ringkas). Kolom bobot dan Abs manual, progres,
+   dan pesan status ikut tergulir, sehingga grafik dan hasil tidak lagi tertutup saat sampel dipilih. */
+.scan-inputs{margin:0 0 4px}
+.scan-inputs .weight-panel{margin-top:7px}
+#panel-scan>.operation-progress{margin:0 0 6px}
+#panel-scan>.inline-message{margin:4px 2px 10px;font-size:9.5px;line-height:1.4;min-height:0}

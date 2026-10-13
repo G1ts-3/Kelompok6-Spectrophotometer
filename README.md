@@ -26,7 +26,7 @@ Setelah komputer menyala dan seri dipilih, urutan berikut dikunci. Larutan atau 
 2. Tekan **01 · Zero blanko** (baki terkunci).
 3. Hanya **Standar 25 ppm** (seri yang dipilih) yang bisa diklik. Dari standar ini λmaks dicari.
 4. Tekan **START scan λmaks**. Semua sampel yang diukur kemudian memakai λmaks ini.
-5. Hanya **0 ppm** yang bisa diklik, lalu **Zero blanko** (wajib lagi karena kelompok larutan berganti), lalu **START ukur**. Ulangi satu per satu untuk 5, 10, 15, 20, dan 25 ppm; tidak bisa loncat.
+5. Hanya **0 ppm** yang bisa diklik. **Tidak perlu Zero blanko lagi** (sudah dilakukan di langkah 2), langsung **START ukur**. Ulangi satu per satu untuk 5, 10, 15, 20, dan 25 ppm; tidak bisa loncat.
 6. Setelah standar 25 ppm terukur, hanya **Presisi 1** yang bisa diklik, lalu **Zero blanko** lagi dan **START ukur**. Lanjut Presisi 2 sampai 5, lalu Akurasi, semuanya diklik satu per satu.
 7. Setelah Akurasi selesai, semua tahap tuntas. Tutup software untuk mengulang dari awal (λmaks dan urutan direset).
 
@@ -82,10 +82,10 @@ Begitu Zero blanko, START ukur, atau scan λmaks dimulai, tutup dan rumah monokr
 - Isi alat ditambah detail: ruang optik bawah (laras lensa, cermin datar dan cekung), menara lampu, kolom penyangga, kipas berbilah, roda gigi, dan garis tepi biru.
 
 ## Pembaruan: callout brosur, Jeda, panel tampilan
-- Nomor 1 sampai 9 di model transparan mengikuti sembilan callout brosur Cary 100/300 (biaya kepemilikan rendah, premonokromator, tanpa pergeseran puncak, celah variabel, kompartemen sampel besar, optik berlapis kuarsa, pilihan mode, pengendali aksesori, desain optik unggul). Saat dijeda, klik nomor untuk membaca penjelasan dan zoom otomatis ke bagiannya.
+- Nomor 1 sampai 9 pada model transparan mengikuti gambar acuan jalur cahaya Agilent Cary 100: 1 Sumber cahaya (dua lampu, masing-masing bernomor 1), 2 Cermin pengarah, 3 Celah masuk, 4 Monokromator (kisi difraksi), 5 Celah keluar variabel, 6 Chopper ganda, 7 Kuvet referensi dan sampel (masing-masing bernomor 7), 8 Detektor PMT, 9 Komputer. Daftar nomor dan penjelasannya berada di bawah kotak model 3D, bukan di dalamnya; klik nomor pada model (saat dijeda) atau pada daftar untuk membaca penjelasan dan zoom otomatis. Cary 100 hanya punya satu monokromator; pra-monokromator (ciri Cary 300) sudah dihapus dari model.
 - Tombol Jeda/Lanjut di samping "Kenali bagian" (muncul saat animasi transparan berjalan) membekukan animasi, grafik, dan jam proses.
 - Panel kanan (hanya muncul saat dijeda): Putar/Geser, tombol panah, zoom plus/minus. Tahan tombol untuk bergerak terus; ↺ mengembalikan sudut pandang.
-- Isi alat disusun ulang: lampu, lensa besar, cermin datar/cekung, pra-monokromator, monokromator, chopper ganda, batang pemandu, kluster cermin, jalur turun ke modul detektor (cermin cekung hitam + tabung PMT), serta bola cahaya yang mengalir di sepanjang jalur merah.
+- Isi alat disusun ulang: lampu, lensa besar, cermin pengarah, celah masuk, monokromator, chopper ganda, batang pemandu, kluster cermin, jalur turun ke modul detektor (cermin cekung hitam + tabung PMT), serta bola cahaya yang mengalir di sepanjang jalur merah.
 
 ## Urutan pengukuran dan kecepatan animasi
 - Standar (0 → 25 ppm) dan sampel (Presisi 1 → 5, Akurasi) harus diukur berurutan dari kecil ke besar; kartu yang belum gilirannya tampak pudar dan tidak bisa dipasang (tidak bisa loncat, misalnya 5 ke 25).

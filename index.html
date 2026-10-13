@@ -26,7 +26,7 @@
       <p class="welcome-copy">Simulasi interaktif spektrofotometer UV–Vis. Putar model 3D, ganti kuvet, nyalakan alat, lalu amati spektrum dan kurva kalibrasi di komputer.</p>
       <ul class="welcome-points">
         <li><b>1</b> Nyalakan UPS, alat, lalu CPU</li>
-        <li><b>2</b> Pilih seri, cari λmaks, Zero blanko</li>
+        <li><b>2</b> Pilih seri, Aquades, Zero blanko, cari λmaks</li>
         <li><b>3</b> Ukur standar dan sampel</li>
       </ul>
       <button type="button" class="welcome-start" id="welcome-start">Mulai ▸</button>
@@ -101,21 +101,22 @@
             <button class="hotspot" slot="hotspot-5" data-position="-0.320m 0.285m -0.027m" data-normal="0m 1m 0m" data-part="4" aria-label="Detektor di sisi kanan">5</button>
             <button class="hotspot" slot="hotspot-6" data-position="-0.166m 0.21m -0.212m" data-normal="0m 0m -1m" data-part="5" aria-label="Penutup sampel">6</button>
             <button class="hotspot" slot="hotspot-7" data-position="0.496m 0.078m -0.45m" data-normal="0m 0m -1m" data-part="6" aria-label="Tombol daya">7</button>
-            <div class="proc-label callout" slot="hotspot-c1" data-position="0.42m 0.20m -0.37m" data-normal="0m 1m 0m" data-callout="0" role="button" tabindex="-1" aria-label="Bagian 1"><b>1</b></div>
-            <div class="proc-label callout" slot="hotspot-c2" data-position="0.262m 0.31m 0.20m" data-normal="0m 1m 0m" data-callout="1" role="button" tabindex="-1" aria-label="Bagian 2"><b>2</b></div>
-            <div class="proc-label callout" slot="hotspot-c3" data-position="0.31m 0.17m -0.04m" data-normal="0m 1m 0m" data-callout="2" role="button" tabindex="-1" aria-label="Bagian 3"><b>3</b></div>
-            <div class="proc-label callout" slot="hotspot-c4" data-position="0.136m 0.31m 0.17m" data-normal="0m 1m 0m" data-callout="3" role="button" tabindex="-1" aria-label="Bagian 4"><b>4</b></div>
-            <div class="proc-label callout" slot="hotspot-c5" data-position="-0.166m 0.27m -0.23m" data-normal="0m 1m 0m" data-callout="4" role="button" tabindex="-1" aria-label="Bagian 5"><b>5</b></div>
-            <div class="proc-label callout" slot="hotspot-c6" data-position="0.36m 0.33m 0.30m" data-normal="0m 1m 0m" data-callout="5" role="button" tabindex="-1" aria-label="Bagian 6"><b>6</b></div>
-            <div class="proc-label callout" slot="hotspot-c7" data-position="-0.10m 0.29m -0.027m" data-normal="0m 1m 0m" data-callout="6" role="button" tabindex="-1" aria-label="Bagian 7"><b>7</b></div>
-            <div class="proc-label callout" slot="hotspot-c8" data-position="0.44m 0.13m 0.17m" data-normal="0m 1m 0m" data-callout="7" role="button" tabindex="-1" aria-label="Bagian 8"><b>8</b></div>
-            <div class="proc-label callout" slot="hotspot-c9" data-position="0.115m 0.31m 0.185m" data-normal="0m 1m 0m" data-callout="8" role="button" tabindex="-1" aria-label="Bagian 9"><b>9</b></div>
-            <div class="proc-label proc-chip" slot="hotspot-pi0" data-position="-0.125m 0.300m -0.107m" data-normal="0m 1m 0m" data-step="4">I₀</div>
-            <div class="proc-label proc-chip" slot="hotspot-pit" data-position="-0.235m 0.300m -0.107m" data-normal="0m 1m 0m" data-step="4">Iₜ</div>
-            <div class="proc-label proc-readout-wrap" slot="hotspot-pdet" data-position="-0.320m 0.295m -0.027m" data-normal="0m 1m 0m" data-step="5"><span class="proc-readout" id="proc-readout">0.000</span></div>
+            <div class="proc-label callout" slot="hotspot-c1" data-position="0.46m 0.33m 0.30m" data-normal="0m 1m 0m" data-callout="0" role="button" tabindex="-1" aria-label="Sumber cahaya (lampu deuterium)"><b>1</b></div>
+            <div class="proc-label callout" slot="hotspot-c2" data-position="0.46m 0.33m 0.222m" data-normal="0m 1m 0m" data-callout="0" role="button" tabindex="-1" aria-label="Sumber cahaya (lampu tungsten-halogen)"><b>1</b></div>
+            <div class="proc-label callout" slot="hotspot-c3" data-position="0.36m 0.31m 0.26m" data-normal="0m 1m 0m" data-callout="1" role="button" tabindex="-1" aria-label="Cermin pengarah"><b>2</b></div>
+            <div class="proc-label callout" slot="hotspot-c4" data-position="0.205m 0.31m 0.17m" data-normal="0m 1m 0m" data-callout="2" role="button" tabindex="-1" aria-label="Celah masuk"><b>3</b></div>
+            <div class="proc-label callout" slot="hotspot-c5" data-position="0.165m 0.31m 0.245m" data-normal="0m 1m 0m" data-callout="3" role="button" tabindex="-1" aria-label="Monokromator"><b>4</b></div>
+            <div class="proc-label callout" slot="hotspot-c6" data-position="0.136m 0.32m 0.125m" data-normal="0m 1m 0m" data-callout="4" role="button" tabindex="-1" aria-label="Celah keluar"><b>5</b></div>
+            <div class="proc-label callout" slot="hotspot-c7" data-position="0.105m 0.32m 0.235m" data-normal="0m 1m 0m" data-callout="5" role="button" tabindex="-1" aria-label="Chopper ganda"><b>6</b></div>
+            <div class="proc-label callout" slot="hotspot-c8" data-position="-0.166m 0.31m 0.053m" data-normal="0m 1m 0m" data-callout="6" role="button" tabindex="-1" aria-label="Kuvet referensi"><b>7</b></div>
+            <div class="proc-label callout" slot="hotspot-c9" data-position="-0.166m 0.31m -0.107m" data-normal="0m 1m 0m" data-callout="6" role="button" tabindex="-1" aria-label="Kuvet sampel"><b>7</b></div>
+            <div class="proc-label callout" slot="hotspot-c10" data-position="-0.425m 0.22m -0.027m" data-normal="0m 1m 0m" data-callout="7" role="button" tabindex="-1" aria-label="Detektor PMT"><b>8</b></div>
+            <div class="proc-label callout" slot="hotspot-c11" data-position="-0.454m 0.13m 0.38m" data-normal="0m 1m 0m" data-callout="8" role="button" tabindex="-1" aria-label="Komputer"><b>9</b></div>
+            <div class="proc-label proc-chip" slot="hotspot-pi0" data-position="-0.125m 0.300m -0.107m" data-normal="0m 1m 0m" data-step="6">I₀</div>
+            <div class="proc-label proc-chip" slot="hotspot-pit" data-position="-0.235m 0.300m -0.107m" data-normal="0m 1m 0m" data-step="6">Iₜ</div>
+            <div class="proc-label proc-readout-wrap" slot="hotspot-pdet" data-position="-0.320m 0.295m -0.027m" data-normal="0m 1m 0m" data-step="7"><span class="proc-readout" id="proc-readout">0.000</span></div>
           </model-viewer>
           <div class="scan-hud" id="scan-hud" hidden role="status"><span class="hud-dot"></span><b id="hud-title">Scanning</b><span id="hud-nm">200 nm</span><i><em id="hud-bar"></em></i></div>
-          <div class="scan-optics" aria-hidden="true"><span>NOMOR BAGIAN · SESUAI BROSUR CARY 100/300</span><i></i><small>1 Biaya rendah · 2 Premonokromator · 3 Tanpa geser puncak · 4 Celah variabel · 5 Kompartemen sampel besar · 6 Optik berlapis kuarsa · 7 Pilihan mode · 8 Pengendali aksesori · 9 Chopper ganda</small><small>Jeda lalu klik nomor untuk penjelasan; pakai panel kanan untuk zoom, putar, dan geser.</small></div>
           <div class="part-card" id="part-card" hidden><button id="close-part" aria-label="Tutup penjelasan">×</button><span id="part-number"></span><strong id="part-title"></strong><p id="part-copy"></p></div>
           <div class="view-pad" id="view-pad" aria-label="Kontrol tampilan 3D">
             <div class="vp-mode" role="group" aria-label="Mode gerak"><button type="button" data-mode="rotate" class="active">Putar</button><button type="button" data-mode="pan">Geser</button></div>
@@ -124,12 +125,18 @@
           </div>
           <div class="stage-bottom">
             <div class="stage-actions">
-              <button class="soft-button" id="lid-button" aria-pressed="false"><span aria-hidden="true">◫</span> Buka penutup</button>
+              <button class="soft-button" id="lid-button" aria-pressed="false"><span aria-hidden="true">◫</span> Buka</button>
               <button class="soft-button" id="instrument-power" aria-pressed="false"><span class="tiny-led"></span> Nyalakan alat</button>
               <button class="icon-button" id="reset-view" aria-label="Atur ulang sudut pandang" title="Atur ulang sudut pandang">↺</button>
             </div>
             <div class="stage-right-actions"><button class="soft-button" id="pause-button" hidden aria-pressed="false"><span aria-hidden="true">⏸</span> <span id="pause-label">Jeda</span></button><button class="parts-button" id="parts-toggle" aria-pressed="false">Kenali bagian <span>ⓘ</span></button></div>
           </div>
+        </div>
+        <div class="optics-panel" id="optics-panel" aria-label="Nomor bagian jalur cahaya Agilent Cary 100">
+          <div class="optics-head"><b>NOMOR BAGIAN · JALUR CAHAYA AGILENT CARY 100</b><span id="optics-phase" hidden></span></div>
+          <ol class="optics-legend" id="optics-legend"></ol>
+          <p class="optics-hint">Tekan Jeda saat animasi berjalan, lalu klik nomor pada model atau pada daftar ini untuk membaca penjelasannya.</p>
+          <div class="optics-card" id="optics-card" hidden><button type="button" id="optics-card-close" aria-label="Tutup penjelasan">×</button><span id="optics-card-num"></span><strong id="optics-card-title"></strong><p id="optics-card-copy"></p></div>
         </div>
       </section>
 

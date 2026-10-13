@@ -386,8 +386,8 @@ quad("BeamSplitter", [(MX(.226), .243, MID_Z - .006), (MX(.238), .243, MID_Z + .
                       (MX(.238), .273, MID_Z + .006), (MX(.226), .273, MID_Z - .006)], splitter_glass)
 
 
-# ---- Komponen dalam alat (terlihat saat Mode transparan), mengikuti ilustrasi cutaway brosur Cary 100/300:
-# dua lampu (deuterium + tungsten) dengan reflektor dan lensa, cermin datar dan cekung, pra-monokromator,
+# ---- Komponen dalam alat (terlihat saat Mode transparan), mengikuti diagram jalur cahaya Agilent Cary 100 (satu monokromator, double-beam):
+# dua lampu (deuterium + tungsten) dengan reflektor dan lensa, cermin pengarah, celah masuk,
 # monokromator (kisi), celah variabel, chopper ganda, jalur merah dengan panah, lalu modul detektor (PMT),
 # motor, rel/papan optik berskrup emas, papan elektronik, catu daya dan kipas.
 def dsm(idx):
@@ -510,23 +510,15 @@ mirror("InternalMirror2", M2[0], M2[1], (0, -1), (1, 0))
 mirror("InternalMirrorW", M1[0], LAMP_W[1], (1, 0), (0, 1))
 ray("InternalRayWup", (M1[0], LAMP_W[1]), M1)
 ray("InternalRay12", M1, M2)
-ray("InternalRay2Pre", M2, (-.305, .170))
+ray("InternalRay2Mono", M2, (-.205, .170))   # Cary 100: cahaya langsung ke celah masuk monokromator (tanpa pra-monokromator)
 
-# --- celah masuk pra-monokromator (dua pelat hitam) lalu pra-monokromator: cermin cekung + kisi
+# --- celah (dua pelat hitam). Cary 100 hanya punya SATU monokromator; tidak ada pra-monokromator (itu ciri Cary 300).
 def slit_pair(name, x, z, gap=.004):
     for sgn, side in ((1, "A"), (-1, "B")):
         rounded_box(f"{name}{side}", (x, IY, z + sgn * (gap / 2 + .009)), (.004, .040, .018), .0008, slit_black)
     gold_screws(name + "Screw", [(x, IY + .022, z + .018), (x, IY + .022, z - .018)], .0022)
-slit_pair("InternalEntranceSlit", -.300, .170)
-rounded_box("InternalPreTray", (-.262, .2345, .180), (.075, .007, .090), .002, internal_dark)
-cmirror("InternalPreC1", -.235, .205, (-.285, .170))
-cmirror("InternalPreC2", -.235, .150, (-.262, .222))
-GP1 = (-.268, IY, .222); pv1 = pivot("RockGratingPre", GP1)
-rounded_box("InternalPreGrating", (0, 0, 0), (.020, .038, .006), .001, mirror_mat, pv1)
-poly("InternalPreRay", [(-.292, .170), (-.235, .205), (-.268, .222), (-.235, .150), (-.222, .170)])
-slit_pair("InternalPreExitSlit", -.222, .170)
 
-# --- monokromator utama: dua cermin cekung + kisi di meja putar, celah keluar variabel
+# --- monokromator (satu-satunya): celah masuk, dua cermin cekung + kisi difraksi di meja putar, celah keluar variabel
 rounded_box("InternalMonoTray", (-.172, .2345, .185), (.075, .007, .115), .002, internal_dark)
 cmirror("InternalMonoC1", -.150, .222, (-.205, .170))
 cmirror("InternalMonoC2", -.150, .130, (-.172, .245))
@@ -681,8 +673,7 @@ box_edges("OutlineWell", (.166, .231, -.027), (.36, .058, .40), .0016)
 # --- bola pulsa cahaya (digandakan dan digerakkan app.js) dan jalur geraknya, disimpan di node Instrument.extras
 pulse_int = glow("InternalPulse", (1, .93, .55))
 sphere("InternalPulse", (0, 0, 0), .0058, pulse_int, 12, 7)
-P_MAIN = [(-.46, IY, .30), (M1[0], IY, M1[1]), (M2[0], IY, M2[1]), (-.305, IY, .170), (-.292, IY, .170), (-.235, IY, .205), (-.268, IY, .222),
-          (-.235, IY, .150), (-.222, IY, .170), (-.198, IY, .170), (-.150, IY, .222), (-.180, IY, .245), (-.150, IY, .130), (-.138, IY, .170),
+P_MAIN = [(-.46, IY, .30), (M1[0], IY, M1[1]), (M2[0], IY, M2[1]), (-.205, IY, .170), (-.198, IY, .170), (-.150, IY, .222), (-.180, IY, .245), (-.150, IY, .130), (-.138, IY, .170),
           (-.075, IY, .170), (.040, IY, .170), (.040, IY, .285), (.360, IY, .285), (.360, IY, .185), (.360, .150, .185), (.360, .150, -.027), (.392, .150, -.027)]
 P_W = [(-.46, .222), (-.36, .222), (-.36, .30), (-.36, .17)]
 paths = [

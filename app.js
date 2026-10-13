@@ -211,7 +211,7 @@
     $('close-software').disabled=busy();
     $('power-status').textContent=!state.upsOn?'Nyalakan UPS terlebih dahulu.':!state.instrumentOn?'UPS aktif · nyalakan alat.':!state.pcuOn?'Alat aktif · nyalakan PCU.':state.softwareOpen?'Selesai praktik: catat log book, tutup software → PCU → alat → UPS.':'PCU aktif · buka software. Untuk shutdown: PCU → alat → UPS.';
     $('lid-button').setAttribute('aria-pressed',String(state.lidOpen));
-    $('lid-button').lastChild.textContent=state.lidOpen?' Tutup penutup':' Buka penutup';
+    $('lid-button').lastChild.textContent=state.lidOpen?' Tutup':' Buka';
     $('lid-button').disabled=busy();
     $('parts-toggle').disabled=busy();
     $('mode-button').disabled=busy();
@@ -385,7 +385,7 @@
     const dz=-.022/2+(f+.5)*.022/7;                      // jarak pita dari sumbu (m), spread 22 mm
     rotor.rotation.y=0; rotor.position.z=rotorZ0-dz;     // geser, bukan putar
   }
-  // Animasi isi alat saat scan transparan: bola cahaya mengalir sepanjang jalur merah (lampu, cermin, pra-monokromator,
+  // Animasi isi alat saat scan transparan: bola cahaya mengalir sepanjang jalur merah (lampu, cermin pengarah, monokromator,
   // monokromator, chopper, detektor, optik bawah), chopper dan roda gigi berputar, kisi bergoyang, kipas berputar.
   let rig;
   function getRig() {
@@ -403,7 +403,7 @@
         for(let k=0;k<p.n;k++){ const m=items.length?tpl.clone():tpl; if(m!==tpl) tpl.parent.add(m); items.push({m,pts,segs,len,off:k/p.n}); }
       }
       const spin=[['SpinChopper','y',11],['SpinGear','x',3],['SpinFan','z',16]].map(([n,ax,w])=>({o:scene.getObjectByName(n),ax,w})).filter(q=>q.o);
-      const rock=[['RockGratingPre',0],['RockGratingMono',1.7]].map(([n,ph])=>({o:scene.getObjectByName(n),ph})).filter(q=>q.o);
+      const rock=[['RockGratingMono',1.7]].map(([n,ph])=>({o:scene.getObjectByName(n),ph})).filter(q=>q.o);
       rig={items,spin,rock};
     } catch { rig=null; }
     return rig;
@@ -485,7 +485,7 @@
     $('progress-fill').style.width=`${value}%`;
     $('progress-meter').setAttribute('aria-valuenow',String(value));
   }
-  const PROCESS_STEPS=['1 · Biaya rendah','2 · Premonokromator','3 · Tanpa geser puncak','4 · Celah variabel','5 · Kompartemen sampel besar · I₀ → Iₜ','6 · Optik berlapis kuarsa','7 · Pilihan mode','8 · Pengendali aksesori','9 · Chopper ganda'];
+  const PROCESS_STEPS=['1 · Sumber cahaya (D₂ dan W)','2 · Cermin pengarah','3 · Celah masuk','4 · Monokromator (kisi difraksi)','5 · Celah keluar variabel','6 · Chopper ganda','7 · Kuvet referensi (I₀) dan sampel (Iₜ)','8 · Detektor PMT','9 · Komputer'];
   function scrollToChart(top=false) {
     const sc=document.querySelector('.software-scroll'), card=document.querySelector('.chart-card');
     if(!sc||!card)return;
@@ -522,10 +522,11 @@
     await tween(ms,p=>{
       const nm=from+(to-from)*p;
       const col=see?css(beamLook(nm,solution)):css(nmToRgb(nm));
-      // Urutan proses mengikuti diagram: Source → Condenser → Monochromator → Slit → Sample Holder → Detector.
+      // Urutan proses mengikuti diagram Cary 100: Sumber → Cermin pengarah → Celah masuk → Monokromator → Celah keluar → Chopper → Kuvet → Detektor → Komputer.
       // Sorotan kuning menyala berurutan dari nomor 1 sampai 9 (satu putaran penuh tiap scan).
       const step=Math.min(PROCESS_STEPS.length-1,Math.floor(((tnow()-stepT0)%(PROCESS_STEPS.length*stepMs))/stepMs)), phase=PROCESS_STEPS[step];
       $('stage').dataset.step=String(step);
+      litLegend(step);
       $('proc-readout').textContent=formatAbs(core.absorbance(solution,nm));        // angka layar detektor
       setWorkProgress(22+p*68,`${title} · ${phase}`);
       $('hud-title').textContent=phase;
@@ -535,6 +536,7 @@
     stopPulses();
     state.sweeping=false; setPaused(false); $('pause-button').hidden=true;
     delete $('stage').dataset.step; $('proc-readout').textContent=formatAbs(0);
+    litLegend(-1);
     $('scan-hud').hidden=true; if(see) showBeam(false);
     setWorkProgress(95,'Detektor mengirim hasil ke software');
     if(see) await tween(500,p=>{ setShellGhost(1-p); });
@@ -611,6 +613,8 @@
     const on=active && state.instrumentOn;
     if (!on) beamReset();
     $('stage').classList.toggle('scanning',on);
+    $('optics-panel').classList.toggle('show',on);   // panel nomor bagian hanya muncul saat scan, di bawah kotak 3D
+    if(!on&&state.callout>=0)closeCallout();
     document.querySelector('.flow-strip')?.classList.toggle('active',on);
   }
   function animateLid(target) {
@@ -1071,7 +1075,7 @@
     if(busy() || !state.softwareOpen || !state.seriesPicked || !state.upsOn || !state.instrumentOn || !state.pcuOn || state.workflow!=='lambda' || state.step!=='lambda' || state.selected!=='std-25')return;
     const key=core.datasetKey,[start,end]=ranges.uv;
     const solution=getSolution('std-25');
-    state.measuring=true;state.currentScan=null;state.blanked=false;state.zeroGroup=null;updateControls();
+    state.measuring=true;state.currentScan=null;updateControls();
     setWorkProgress(0,'Memulai scan λmaks dengan Standar 25 ppm');
     try {
       await setLid(false);
@@ -1092,8 +1096,10 @@
       setWorkProgress(100,`Selesai · λmaks = ${formatPeak(top.nm)} nm (Abs ${formatAbs(top.abs,key)})`);
       drawSpectrum();drawCalibration();drawHistory();
       // Setelah λmaks ditemukan: lanjut ke deret standar mulai 0 ppm, dipilih manual di baki.
+      // Zero blanko sudah dilakukan di awal (sebelum scan λmaks), jadi deret standar langsung bisa diukur tanpa Zero lagi.
+      state.blanked=true;state.zeroGroup='standar';
       state.workflow='concentration';state.range='uv';state.step='std';state.requiresSelection=true;
-      status(`λmaks ${formatPeak(top.nm)} nm terpasang untuk seri ${core.datasets[key].label}. Klik Standar 0 ppm di baki.`);
+      status(`λmaks ${formatPeak(top.nm)} nm terpasang untuk seri ${core.datasets[key].label}. Klik Standar 0 ppm di baki, lalu START ukur (tanpa Zero lagi).`);
     } finally {state.measuring=false;updateControls();}
   }
   async function zero() {
@@ -1200,32 +1206,46 @@
   $('sample-weight').addEventListener('input',updateControls);
   $('lid-button').addEventListener('click',()=>setLid(!state.lidOpen));
   $('reset-view').addEventListener('click',resetView);
-  // ---- Nomor bagian sesuai callout brosur Cary 100/300. Klik nomor saat animasi dijeda untuk penjelasan dan zoom otomatis.
+  // ---- Nomor bagian mengikuti urutan jalur cahaya Agilent Cary 100 (double-beam, SATU monokromator).
+  // Penomoran sama dengan gambar acuan; daftar dan penjelasan berada di bawah kotak model 3D.
   const CALLOUTS=[
-    ['Biaya kepemilikan rendah','Optik tersegel mencegah paparan lingkungan korosif, memperpanjang umur alat dan menekan biaya servis.','200deg 62deg 1.2m','0m .15m 0m'],
-    ['Premonokromator memperluas rentang','Cary 300 memiliki premonokromator yang memperluas rentang fotometrik linear hingga lebih dari 6,0 Abs. Cary 100 bekerja hingga lebih dari 4,0 Abs.','200deg 50deg .40m','.262m .26m .19m'],
-    ['Tanpa pergeseran puncak','Penggerak panjang gelombang terkunci fasa mencegah pergeseran puncak dan penekanan puncak pada kecepatan scan tinggi.','160deg 50deg .40m','.31m .13m -.04m'],
-    ['Celah variabel','Memberi kontrol optimum atas resolusi spektrum.','195deg 50deg .32m','.136m .26m .17m'],
-    ['Kompartemen sampel besar','Memberi fleksibilitas lebih untuk ukuran sampel.','180deg 48deg .62m','-.166m .25m -.027m'],
-    ['Optik berlapis kuarsa','Melindungi optik dari lingkungan sehingga kinerja optik terjaga sepanjang umur alat.','200deg 50deg .45m','.36m .27m .25m'],
-    ['Pilihan mode','Meski berkas ganda (double beam), alat dapat dioperasikan dalam mode berkas tunggal, ganda, atau dual-single untuk memperluas kapasitas sampling.','180deg 48deg .48m','-.10m .25m -.027m'],
-    ['Pengendali aksesori','Pengendali aksesori mengatur aksesori Agilent dan pihak ketiga secara terpusat.','150deg 55deg .55m','-.44m .10m .17m'],
-    ['Desain optik unggul','Chopper ganda memastikan berkas sampel dan referensi mengenai detektor pada titik yang sama, sehingga galat akibat ketidakseragaman detektor hilang.','200deg 50deg .32m','.115m .24m .185m'],
+    ['Sumber cahaya','Dua lampu: deuterium (190–350 nm, daerah UV) dan tungsten-halogen (350–900 nm, daerah tampak). Keduanya diberi nomor 1 pada model.','200deg 50deg .45m','.46m .26m .26m'],
+    ['Cermin pengarah','Menggabungkan cahaya kedua lampu dan mengarahkannya ke monokromator.','195deg 50deg .35m','.36m .26m .24m'],
+    ['Celah masuk','Mengatur jumlah cahaya yang masuk ke monokromator.','195deg 50deg .30m','.205m .26m .17m'],
+    ['Monokromator (kisi difraksi)','Cary 100 memakai satu monokromator. Kisi difraksi menguraikan cahaya polikromatik dan memilih satu panjang gelombang tertentu.','200deg 50deg .40m','.165m .26m .20m'],
+    ['Celah keluar (variabel)','Mengatur lebar celah untuk mengontrol resolusi spektrum dan intensitas cahaya yang keluar dari monokromator.','195deg 50deg .30m','.136m .26m .15m'],
+    ['Chopper ganda (double-beam)','Mengalihkan berkas cahaya bergantian dengan frekuensi tinggi ke jalur referensi dan jalur sampel.','200deg 50deg .32m','.105m .24m .20m'],
+    ['Kuvet referensi (I₀) dan sampel (Iₜ)','Kuvet belakang berisi blanko (pelarut) sebagai referensi I₀; kuvet depan berisi larutan sampel Iₜ. Keduanya diberi nomor 7.','180deg 48deg .62m','-.166m .25m -.027m'],
+    ['Detektor (photomultiplier tube)','Mengubah intensitas cahaya yang sudah melewati kuvet menjadi sinyal listrik.','215deg 45deg .50m','-.425m .15m -.027m'],
+    ['Komputer dan perangkat lunak','Mengolah sinyal dari detektor menjadi spektrum dan nilai absorbansi (A) atau %T.','150deg 55deg .55m','-.454m .105m .30m'],
   ];
+  const legend=$('optics-legend');
+  CALLOUTS.forEach((c,i)=>{
+    const li=document.createElement('li');li.dataset.callout=String(i);li.tabIndex=0;li.setAttribute('role','button');
+    const n=document.createElement('b');n.textContent=String(i+1);li.append(n,document.createTextNode(c[0]));
+    const open=()=>{ if(state.sweeping&&!state.paused)return; openCallout(i); };
+    li.addEventListener('click',open);li.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});
+    legend.append(li);
+  });
+  function litLegend(step) {
+    legend.querySelectorAll('li').forEach(li=>li.classList.toggle('lit',Number(li.dataset.callout)===step));
+    const ph=$('optics-phase');ph.hidden=step<0;if(step>=0)ph.textContent=PROCESS_STEPS[step];
+  }
   function openCallout(i) {
     state.callout=i;
     document.querySelectorAll('.callout').forEach(b=>b.classList.toggle('active',Number(b.dataset.callout)===i));
-    $('part-number').textContent=`BAGIAN ${i+1} / ${CALLOUTS.length} · BROSUR CARY`;
-    $('part-title').textContent=CALLOUTS[i][0]; $('part-copy').textContent=CALLOUTS[i][1];
-    const card=$('part-card'); card.hidden=false;
-    const w=card.offsetWidth||255; card.style.left=`${Math.max(12,$('stage').clientWidth-w-12)}px`; card.style.top='112px';
+    legend.querySelectorAll('li').forEach(li=>li.classList.toggle('active',Number(li.dataset.callout)===i));
+    $('optics-card-num').textContent=`BAGIAN ${i+1} / ${CALLOUTS.length} · CARY 100`;
+    $('optics-card-title').textContent=CALLOUTS[i][0]; $('optics-card-copy').textContent=CALLOUTS[i][1];
+    $('optics-card').hidden=false;
     viewer.cameraOrbit=CALLOUTS[i][2]; viewer.cameraTarget=CALLOUTS[i][3];
   }
   function closeCallout() {
     if(state.callout<0)return;
     state.callout=-1;
     document.querySelectorAll('.callout').forEach(b=>b.classList.remove('active'));
-    $('part-card').hidden=true;
+    legend.querySelectorAll('li').forEach(li=>li.classList.remove('active'));
+    $('optics-card').hidden=true;
   }
   document.querySelectorAll('.callout').forEach(b=>b.addEventListener('click',e=>{ if(!state.paused)return; e.stopPropagation(); openCallout(Number(b.dataset.callout)); }));
   $('pause-button').addEventListener('click',()=>setPaused(!state.paused));
@@ -1280,6 +1300,7 @@
     event.stopPropagation();focusPart(Number(button.dataset.part));
     if(button.dataset.part==='6')powerInstrument();
   }));
+  $('optics-card-close').addEventListener('click',closeCallout);
   $('close-part').addEventListener('click',()=>{ if(state.callout>=0) closeCallout(); else resetView(); });
   viewer.addEventListener('camera-change',positionPartCard);
   window.addEventListener('resize',positionPartCard);

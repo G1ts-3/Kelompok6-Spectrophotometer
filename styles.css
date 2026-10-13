@@ -385,7 +385,7 @@
 .stage.paused .scan-optics{max-width:calc(100% - 200px)}
 .scan-optics small{white-space:normal}
 
-.solution.locked{opacity:.45;cursor:not-allowed;filter:grayscale(.5)}
+.solution.locked{opacity:.45;cursor:not-allowed;filter:grayscale(.5)}.solution.locked:hover{transform:none;box-shadow:none;border-color:#d6e7ed}
 
 /* Panel yang menempel di atas layar hanya berisi langkah berikutnya dan tombol (ringkas). Kolom bobot dan Abs manual, progres,
    dan pesan status ikut tergulir, sehingga grafik dan hasil tidak lagi tertutup saat sampel dipilih. */
@@ -393,3 +393,11 @@
 .scan-inputs .weight-panel{margin-top:7px}
 #panel-scan>.operation-progress{margin:0 0 6px}
 #panel-scan>.inline-message{margin:4px 2px 10px;font-size:9.5px;line-height:1.4;min-height:0}
+
+/* Teks kaki halaman kiri dihapus; sisakan penanda tahun di kanan. */
+footer{justify-content:flex-end}
+
+/* Pilihan seri menampilkan panjang gelombang (simbol λ); judul sumbu pada grafik spektrum. */
+.series-option .lam{margin-top:2px;color:#2a7f9b;font:600 11px var(--mono)}
+#spectrum-chart .axis-title{font:600 9px var(--mono);fill:#4d7384}
+.chart-foot .axis-x-title{color:#4d7384;font-weight:600}

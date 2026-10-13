@@ -24,6 +24,8 @@
     zeroGroup:null, queueId:'std-0', filling:false, blankReady:true, requiresSelection:false, lastResult:null,
     history:loadHistory(), part:-1, workflow:'lambda', zeroed:false, seriesPicked:false,
     confirmedPeaks:{},
+    // Alur wajib (semua diklik manual): aquades → zero → 25 ppm → scan λmaks → standar 0..25 → presisi/akurasi → selesai.
+    step:'aquades',
   };
   let lidFrame=0, lidResolve=null, beamTimer=0;
   const busy = () => state.measuring || state.filling;
@@ -74,11 +76,40 @@
     if(done.size>=sequences[solution.family].length)done.clear();
     done.add(solution.id);
   }
+  // Larutan mana yang boleh diklik pada tahap sekarang. Tahap lain terkunci.
+  function stepAllows(s,key) {
+    const same=!key || key===core.datasetKey;
+    switch(state.step) {
+      case 'aquades': return s.id==='aquades';
+      case 'pick25': return s.id==='std-25' && same;
+      case 'std': return s.family==='standar' && same && allowedNext('standar',core.datasetKey)===s.id;
+      case 'sampel': return s.family==='sampel' && !s.custom && same && allowedNext('sampel',core.datasetKey)===s.id;
+      case 'done': return s.family==='sampel' && !!s.custom && !s.archived && same;
+      default: return false;   // 'zero' dan 'lambda': tombol komputer yang dipakai, baki terkunci
+    }
+  }
+  function stepBlockedText(s) {
+    const seri=core.datasetKey==='praktikum'?'1':'2';
+    switch(state.step) {
+      case 'aquades': return 'Mulai dengan klik Aquades dahulu.';
+      case 'zero': return 'Tekan Zero blanko di komputer dahulu.';
+      case 'pick25': return `Pasang Standar 25 ppm (seri ${seri}) untuk mencari λmaks.`;
+      case 'lambda': return 'Tekan START scan λmaks di komputer dahulu.';
+      case 'std': return `Standar harus berurutan: pasang ${getSolution(allowedNext('standar',core.datasetKey)).name} dahulu.`;
+      case 'sampel': return `Sampel harus berurutan: pasang ${getSolution(allowedNext('sampel',core.datasetKey)).name} dahulu.`;
+      default: return 'Semua tahap selesai.';
+    }
+  }
+  function resetFlow() {
+    state.step='aquades';state.confirmedPeaks={};state.workflow='lambda';state.requiresSelection=false;
+    state.blanked=false;state.zeroGroup=null;state.currentScan=null;state.lastResult=null;
+    for(const k of Object.keys(doneIds))delete doneIds[k];
+  }
   function updateOrderLocks() {
     document.querySelectorAll('.solution[data-solution]').forEach(b=>{
       const s=getSolution(b.dataset.solution);
-      const lock=isOrdered(s)&&b.dataset.dataset&&allowedNext(s.family,b.dataset.dataset)!==s.id;
-      b.classList.toggle('locked',!!lock);b.setAttribute('aria-disabled',String(!!lock));
+      const lock=!stepAllows(s,b.dataset.dataset);
+      b.classList.toggle('locked',lock);b.setAttribute('aria-disabled',String(lock));
     });
   }
 
@@ -142,7 +173,7 @@
     const raw=$('manual-abs').value.trim().replace(',','.');
     return raw && parseNonnegativeDecimal(raw)!==null ? raw : null;
   }
-  function status(message) { $('screen-status').textContent=message; }
+  function status() { /* pesan status di layar monitor sudah dihapus; langkah berikutnya tampil di kotak "Langkah berikutnya" */ }
   function setTab(name) {
     state.tab=name;
     for (const tab of ['scan','cal','history']) {
@@ -180,7 +211,7 @@
     $('close-software').disabled=busy();
     $('power-status').textContent=!state.upsOn?'Nyalakan UPS terlebih dahulu.':!state.instrumentOn?'UPS aktif · nyalakan alat.':!state.pcuOn?'Alat aktif · nyalakan PCU.':state.softwareOpen?'Selesai praktik: catat log book, tutup software → PCU → alat → UPS.':'PCU aktif · buka software. Untuk shutdown: PCU → alat → UPS.';
     $('lid-button').setAttribute('aria-pressed',String(state.lidOpen));
-    $('lid-button').lastChild.textContent=state.lidOpen?' Tutup tutup':' Buka tutup';
+    $('lid-button').lastChild.textContent=state.lidOpen?' Tutup penutup':' Buka penutup';
     $('lid-button').disabled=busy();
     $('parts-toggle').disabled=busy();
     $('mode-button').disabled=busy();
@@ -190,29 +221,31 @@
     const applied=Number.isFinite(state.confirmedPeaks[core.datasetKey]);
     $('workflow-lambda').setAttribute('aria-pressed',String(finding));
     $('workflow-concentration').setAttribute('aria-pressed',String(!finding));
-    $('workflow-concentration').disabled=busy() || !applied;
-    $('workflow-lambda').disabled=busy();
-    $('workflow-setup').textContent=finding?
-      `Seri ${core.datasetKey==='praktikum'?'1':'2'} dipilih. Scan 200–400 nm; puncak tertinggi kurva menjadi λmaks yang dipakai untuk pengukuran.`:
-      `λ ${formatPeak(state.confirmedPeaks[core.datasetKey])} nm · blanko aquades · deret standar 0–25 mg/L · sampel Presisi 1–5 dan Akurasi.`;
+    $('workflow-concentration').disabled=true;   // tahap berjalan otomatis mengikuti alur wajib; tidak bisa dilompati
+    $('workflow-lambda').disabled=true;
     $('lambda-entry').hidden=!finding;
-    $('scan-lambda').disabled=!ready || busy() || state.requiresSelection || state.selected==='aquades';
+    const zeroStep=state.step==='zero';
+    $('scan-lambda').disabled=!ready || busy() || state.step!=='lambda' || state.requiresSelection || state.selected!=='std-25';
     $('scan-lambda').firstChild.textContent=state.measuring&&finding?'Memindai… ':'START scan λmaks ';
-    $('lambda-hint').textContent=`Seri ${core.datasetKey==='praktikum'?'1':'2'} · sumbu X panjang gelombang (nm), sumbu Y absorbansi. Puncak kurva = λmaks.`;
-    $('run-controls').hidden=finding;
+    $('run-controls').hidden=finding&&!zeroStep;
+    $('scan-button').hidden=finding;
     let next;
     if (state.upsOn&&state.instrumentOn&&state.pcuOn&&state.softwareOpen&&!state.seriesPicked) next='Pilih seri 1 atau seri 2 pada layar monitor.';
     else if (!ready) next='Nyalakan UPS → alat → PCU, lalu buka software.';
     else if (busy()) next=state.filling?'Menukar kuvet; tunggu sampai selesai…':'Alat sedang bekerja; tunggu hasilnya…';
-    else if (finding) next=(state.requiresSelection||state.selected==='aquades')?'Pilih larutan standar di baki kiri dahulu, lalu tekan START scan λmaks.':'Tekan START scan λmaks; puncak kurva akan menentukan λmaks.';
-    else if (state.requiresSelection) next='Pilih larutan baru dari baki di kiri.';
+    else if (state.step==='aquades') next='Langkah 1: klik Aquades di baki. Larutan lain masih terkunci.';
+    else if (state.step==='zero') next='Langkah 2: tekan 01 · Zero blanko.';
+    else if (state.step==='pick25') next=`Langkah 3: klik Standar 25 ppm (seri ${core.datasetKey==='praktikum'?'1':'2'}) di baki untuk mencari λmaks.`;
+    else if (state.step==='lambda') next='Langkah 4: tekan START scan λmaks; puncak kurva menjadi λmaks.';
+    else if (state.step==='done'&&state.requiresSelection) next='Semua tahap selesai (aquades → standar → presisi → akurasi). Tutup software untuk mengulang dari awal.';
+    else if (state.requiresSelection) next=(state.step==='std'||state.step==='sampel')?`Klik ${getSolution(allowedNext(state.step==='std'?'standar':'sampel',core.datasetKey)).name} di baki (harus berurutan).`:'Pilih larutan baru dari baki di kiri.';
     else if (!state.blanked) next='Tekan Zero blanko untuk mulai pengukuran konsentrasi.';
     else if (getSolution(state.selected).family==='sampel' && parsePositiveDecimal($('sample-weight').value)===null) next='Isi bobot sampel positif pada komputer sebelum START ukur.';
     else if (getSolution(state.selected).custom && !manualAbsText(getSolution(state.selected))) next='Isi Abs manual sampel tambahan pada komputer sebelum START ukur.';
     else if (getSolution(state.selected).family==='sampel' && $('manual-abs').value.trim() && !manualAbsText(getSolution(state.selected))) next='Perbaiki angka Abs manual; gunakan angka nonnegatif.';
     else next='Tekan START ukur. Grafik, Abs, dan progres alat akan muncul.';
     $('next-instruction').textContent=next;updateOrderLocks();
-    $('zero-button').disabled=!ready || !applied || state.requiresSelection || busy();
+    $('zero-button').disabled=!ready || busy() || (!zeroStep && (!applied || state.requiresSelection || !['std','sampel','done'].includes(state.step)));
     const selected=getSolution(state.selected), sample=selected.family==='sampel';
     const invalidAbs=sample && ((selected.custom && !manualAbsText(selected)) || (!!$('manual-abs').value.trim() && !manualAbsText(selected)));
     $('manual-abs').setAttribute('aria-invalid',String(!!invalidAbs));
@@ -578,7 +611,7 @@
     const on=active && state.instrumentOn;
     if (!on) beamReset();
     $('stage').classList.toggle('scanning',on);
-    document.querySelector('.flow-strip').classList.toggle('active',on);
+    document.querySelector('.flow-strip')?.classList.toggle('active',on);
   }
   function animateLid(target) {
     if (lidFrame) cancelAnimationFrame(lidFrame);
@@ -737,16 +770,13 @@
     if (!state.blanked) return `${head} Jalankan Zero blanko lagi, karena kelompok larutan berubah.`;
     return `${head} Tekan Mulai scan.`;
   }
-  async function chooseSolution(id,datasetKey,noSwap=false) {
+  async function chooseSolution(id,datasetKey,noSwap=false,force=false) {
     if (busy()) return;
     const solution=getSolution(id);
     if(solution.archived)return;
-    if (isOrdered(solution)&&!noSwap) {
-      const need=allowedNext(solution.family,datasetKey);
-      if (need!==solution.id) {
-        status(`Urutan harus menaik dari kecil ke besar: pasang ${getSolution(need).name} dahulu, tidak bisa langsung ke ${solution.name}.`);
-        return;
-      }
+    if (!noSwap&&!force&&!stepAllows(solution,datasetKey)) {
+      status(stepBlockedText(solution));
+      return;
     }
     if (solution.family!=='blanko' && datasetKey!==core.datasetKey) {
       if (!core.setDataset(datasetKey)) return;
@@ -778,6 +808,10 @@
       await setLid(true);
       await swapCuvette(slot,id);
       drawSpectrum();
+      if(!force) {
+        if(id==='aquades'&&state.step==='aquades')state.step='zero';
+        else if(id==='std-25'&&state.step==='pick25')state.step='lambda';
+      }
       status(slot==='Blank'?
         `Kuvet blanko aquades terpasang di belakang; kuvet depan tetap ${getSolution(state.selected).name}. ${state.requiresSelection?'Pilih seri standar atau sampel di baki dahulu.':state.workflow==='lambda'?'Tekan START scan λmaks di komputer.':'Jalankan Zero blanko sebelum scan.'}`:
         `${state.workflow==='lambda'?'Tekan START scan λmaks di komputer.':frontMessage(solution)} Seri ${core.datasets[core.datasetKey].label}.`);
@@ -834,7 +868,7 @@
           remove.addEventListener('click',()=>{
             if(busy())return;
             s.archived=true;saveCustomSamples();
-            if(state.selected===s.id) void chooseSolution('std-0',key);
+            if(state.selected===s.id) void chooseSolution('std-0',key,false,true);
             renderCustomSolutions();drawSampleResults();updateControls();
             $('custom-sample-feedback').textContent=`${s.name} diarsipkan. Hasil lama tetap di Riwayat.`;
           });
@@ -1021,38 +1055,26 @@
     updateControls();
     await chooseSolution('std-0',key,true);
     if(core.datasetKey!==key)return;
-    const confirmed=state.confirmedPeaks[key];
-    const has=Number.isFinite(confirmed);
-    state.workflow=has?'concentration':'lambda';
-    state.range='uv';state.wavelength=has?confirmed:core.peakNm;
+    // Awal praktik: kedua kuvet berisi aquades. Alur wajib dimulai dari klik Aquades.
+    if(state.selected!=='aquades') {
+      state.filling=true;updateControls();
+      try { await setLid(true); await swapCuvette('Sample','aquades'); } finally { state.filling=false; }
+    }
+    state.requiresSelection=false;state.workflow='lambda';
+    state.range='uv';state.wavelength=core.peakNm;
     state.blanked=false;state.zeroGroup=null;state.currentScan=null;
-    updateFormula(null);drawSpectrum();drawCalibration();
-    status(has?`Seri ${key==='praktikum'?'1':'2'} dipilih; λmaks ${formatPeak(confirmed)} nm sudah ditemukan. Pilih larutan di baki, lalu Zero blanko.`:`Seri ${key==='praktikum'?'1':'2'} dipilih. Pilih larutan standar di baki kiri, lalu tekan START scan λmaks.`);
+    updateFormula(null);drawSpectrum();drawCalibration();updateControls();
+    status(`Seri ${key==='praktikum'?'1':'2'} dipilih. Ikuti urutan: Aquades → Zero blanko → Standar 25 ppm → START scan λmaks.`);
   }
+  // Scan λmaks memakai Standar 25 ppm yang sudah dipasang pengguna (setelah Zero blanko dengan aquades).
   async function scanLambda() {
-    if(busy() || !state.softwareOpen || !state.seriesPicked || !state.upsOn || !state.instrumentOn || !state.pcuOn || state.workflow!=='lambda')return;
+    if(busy() || !state.softwareOpen || !state.seriesPicked || !state.upsOn || !state.instrumentOn || !state.pcuOn || state.workflow!=='lambda' || state.step!=='lambda' || state.selected!=='std-25')return;
     const key=core.datasetKey,[start,end]=ranges.uv;
-    let solution=getSolution(state.selected);
-    const chosenId=state.selected!=='aquades'?state.selected:'std-0';   // larutan yang dipilih pengguna
+    const solution=getSolution('std-25');
     state.measuring=true;state.currentScan=null;state.blanked=false;state.zeroGroup=null;updateControls();
-    setWorkProgress(0,'Menyiapkan standar untuk scan λmaks');
+    setWorkProgress(0,'Memulai scan λmaks dengan Standar 25 ppm');
     try {
-      // Urutan mengikuti instruksi kerja: kedua kuvet aquades → Zero & Baseline → ganti ke standar → START scan.
-      await setLid(true);
-      if(state.selected!=='aquades')await swapCuvette('Sample','aquades');
-      const base=core.spectrum(core.solutions[0],start,end,4);
-      status('Zero & Baseline: aquades di kedua kuvet, garis dasar direkam 400–200 nm.');
-      let bdrawn=0;
-      await opticalSweep(core.solutions[0],8000,'Zero & Baseline',(p,nm)=>{
-        const now=performance.now();if(now-bdrawn<90&&p<1)return;bdrawn=now;
-        state.currentScan={solutionId:'aquades',name:'Aquades',baseline:true,start,end,points:base};
-        state.wavelength=nm;drawSpectrum();
-      });
-      await setLid(true);
-      setWorkProgress(5,'Mengganti kuvet depan dengan Standar 25 ppm');
-      await swapCuvette('Sample','std-25');
-      solution=getSolution('std-25');
-      state.currentScan=null;drawSpectrum();
+      await setLid(false);
       const points=core.spectrum(solution,start,end,2);
       status('Scan λmaks: monokromator memindai 200–400 nm, kurva Abs terhadap panjang gelombang digambar.');
       let drawn=0;
@@ -1069,15 +1091,15 @@
       state.currentScan=record;state.lastResult=record;state.wavelength=top.nm;
       setWorkProgress(100,`Selesai · λmaks = ${formatPeak(top.nm)} nm (Abs ${formatAbs(top.abs,key)})`);
       drawSpectrum();drawCalibration();drawHistory();
-      status(`λmaks ditemukan: ${formatPeak(top.nm)} nm, titik puncak kurva. Scan selesai.`);
-      state.queueId=chosenId;state.requiresSelection=false;
-      setCuvetteContents('Sample',chosenId);putInFront(chosenId);   // kembali ke larutan pilihan tanpa animasi
-      state.workflow='concentration';state.range='uv';
-      status(`λmaks ${formatPeak(top.nm)} nm terpasang untuk seri ${core.datasets[key].label}. Klik tab 2 · Pengukuran, tekan Zero blanko.`);
+      // Setelah λmaks ditemukan: lanjut ke deret standar mulai 0 ppm, dipilih manual di baki.
+      state.workflow='concentration';state.range='uv';state.step='std';state.requiresSelection=true;
+      status(`λmaks ${formatPeak(top.nm)} nm terpasang untuk seri ${core.datasets[key].label}. Klik Standar 0 ppm di baki.`);
     } finally {state.measuring=false;updateControls();}
   }
   async function zero() {
-    if (!state.upsOn||!state.instrumentOn||!state.pcuOn||!state.softwareOpen||state.workflow!=='concentration'||state.requiresSelection||busy()||!Number.isFinite(state.confirmedPeaks[core.datasetKey])) return;
+    const firstZero=state.step==='zero';
+    if (!state.upsOn||!state.instrumentOn||!state.pcuOn||!state.softwareOpen||busy()) return;
+    if (!firstZero && (state.workflow!=='concentration'||state.requiresSelection||!['std','sampel','done'].includes(state.step)||!Number.isFinite(state.confirmedPeaks[core.datasetKey]))) return;
     const target=state.queueId;
     commitManualAbs(getSolution(state.selected));
     state.measuring=true;state.currentScan=null;state.blanked=false;updateControls();
@@ -1087,6 +1109,7 @@
       if(state.selected!=='aquades')await swapCuvette('Sample','aquades');
       await setLid(false);
       await runBlankCorrection(target,'Zero blanko');
+      if(firstZero&&state.step==='zero')state.step='pick25';   // zero pertama selesai → pilih Standar 25 ppm
     } finally {state.measuring=false;drawSpectrum();}
   }
   async function runBlankCorrection(target,title) {
@@ -1103,12 +1126,12 @@
       state.blanked=true;state.zeroGroup=groupOf(target);
     } finally {
       await setLid(true);
-      if(state.selected==='aquades')await swapCuvette('Sample',target);   // kembali otomatis ke larutan yang dipilih
+      if(state.selected==='aquades'&&state.step!=='zero')await swapCuvette('Sample',target);   // kembali otomatis ke larutan yang dipilih (bukan pada zero pertama)
       state.queueId=target;
     }
-    state.wavelength=state.confirmedPeaks[core.datasetKey];
+    if(Number.isFinite(state.confirmedPeaks[core.datasetKey]))state.wavelength=state.confirmedPeaks[core.datasetKey];
     setWorkProgress(100,'Zero selesai · aquades sebagai referensi');
-    status(`${title} selesai. Blanko aquades tetap di belakang; ${getSolution(target).name} kembali ke depan. Klik START ukur.`);
+    status(state.step==='zero'?`${title} selesai. Sekarang klik Standar 25 ppm di baki.`:`${title} selesai. Blanko aquades tetap di belakang; ${getSolution(target).name} kembali ke depan. Klik START ukur.`);
   }
   async function scan() {
     if(!state.upsOn||!state.instrumentOn||!state.pcuOn||!state.softwareOpen||state.workflow!=='concentration'||state.requiresSelection||!state.blanked||busy()||!Number.isFinite(state.confirmedPeaks[core.datasetKey]))return;
@@ -1147,6 +1170,9 @@
       setWorkProgress(100,`Selesai · ${solution.name}: ${recordAbs(record)} Abs${manualText!==null?' (input manual)':''}`);
       markDone(solution);
       if(isOrdered(solution))state.requiresSelection=true;
+      if(isOrdered(solution)&&(doneIds[doneKey(solution.family,core.datasetKey)]||new Set()).size>=sequences[solution.family].length) {
+        state.step=solution.family==='standar'?'sampel':'done';   // standar selesai → presisi/akurasi; sampel selesai → tuntas
+      }
       drawSpectrum();drawCalibration();drawHistory();
       const nextId=isOrdered(solution)&&(doneIds[doneKey(solution.family,core.datasetKey)]||new Set()).size<sequences[solution.family].length?allowedNext(solution.family,core.datasetKey):null;
       if(nextId) {
@@ -1164,7 +1190,7 @@
   $('instrument-power').addEventListener('click',powerInstrument);
   $('pcu-power').addEventListener('click',powerPcu);
   $('open-software').addEventListener('click',()=>{if(!state.pcuOn||!state.instrumentOn)return;state.softwareOpen=true;state.seriesPicked=false;updateControls();status('Software terbuka. Pilih seri 1 atau seri 2 pada layar monitor.');});
-  const closeSoftware=()=>{if(busy())return;state.softwareOpen=false;state.seriesPicked=false;state.blanked=false;state.zeroed=false;updateControls();status('Software ditutup. Shutdown PCU, lalu matikan alat dan UPS.');};
+  const closeSoftware=()=>{if(busy())return;state.softwareOpen=false;state.seriesPicked=false;state.blanked=false;state.zeroed=false;resetFlow();updateControls();status('Software ditutup. Shutdown PCU, lalu matikan alat dan UPS.');};
   $('close-software').addEventListener('click',closeSoftware);
   $('chooser-close').addEventListener('click',closeSoftware);
   document.querySelectorAll('.series-option').forEach(button=>button.addEventListener('click',()=>pickSeries(button.dataset.series)));

@@ -18,6 +18,23 @@ Jalankan server statis dari folder ini, misalnya `python3 -m http.server 8000`, 
 - Saat Zero dan START ukur, panel progres memperlihatkan sumber cahaya → monokromator → blanko dan sampel → detektor → hasil, selaras dengan animasi pada model. Tutup ruang sampel dikendalikan oleh klip `LidMotion` dengan pose terakhir yang ditahan.
 - Buka tab **Spektrum**, **Kurva kalibrasi**, atau **Riwayat** pada monitor. Riwayat tersimpan di browser; hasil dari data lama tetap bisa dilihat dan ditandai sebagai simulasi lama. Daftar 30 larutan tambahan telah dihapus.
 
+## Alur wajib (semua diklik manual)
+
+Setelah komputer menyala dan seri dipilih, urutan berikut dikunci. Larutan atau tombol yang belum gilirannya tampak pudar dan tidak bisa diklik; kotak **Langkah berikutnya** pada software menunjukkan apa yang harus dilakukan.
+
+1. Hanya **Aquades** yang bisa diklik di baki.
+2. Tekan **01 · Zero blanko** (baki terkunci).
+3. Hanya **Standar 25 ppm** (seri yang dipilih) yang bisa diklik. Dari standar ini λmaks dicari.
+4. Tekan **START scan λmaks**. Semua sampel yang diukur kemudian memakai λmaks ini.
+5. Hanya **0 ppm** yang bisa diklik, lalu **Zero blanko** (wajib lagi karena kelompok larutan berganti), lalu **START ukur**. Ulangi satu per satu untuk 5, 10, 15, 20, dan 25 ppm; tidak bisa loncat.
+6. Setelah standar 25 ppm terukur, hanya **Presisi 1** yang bisa diklik, lalu **Zero blanko** lagi dan **START ukur**. Lanjut Presisi 2 sampai 5, lalu Akurasi, semuanya diklik satu per satu.
+7. Setelah Akurasi selesai, semua tahap tuntas. Tutup software untuk mengulang dari awal (λmaks dan urutan direset).
+
+Tombol "1 · Cari λmaks" dan "2 · Pengukuran" di software hanya penanda tahap dan tidak bisa diklik.
+
+## Jalur cahaya menuju detektor
+Pada mode transparan, berkas dari kedua kuvet keluar dari kompartemen sampel, turun lewat dua cermin kecil, lalu masuk ke modul detektor (PMT). Jalur optik bawah juga tidak berhenti di laras lensa: berkas naik, melintas di sisi ruang kuvet, lalu masuk ke modul detektor. Bola cahaya animasi mengikuti jalur yang sama. Semua ini dibuat di `build_model.py`; jalankan ulang untuk membangun `spectrophotometer.glb`.
+
 ## Data praktikum
 
 Label aplikasi **Standar/Sampel 1** dan **Standar/Sampel 2** masing-masing memakai sheet sumber `Kadar Thiamin` dan `Kadar Thiamin Jena` dalam workbook terlampir. Di baki, labelnya menjadi **Standar 1/2** pada deret standar dan **Sampel 1/2** pada deret sampel. Nama sheet sumber tetap dicatat di tabel agar asal nilai Abs dapat diperiksa. Saat kuvet dipilih, sumber data mengikuti seri itu; λ diketik langsung oleh pengguna pada komputer. Nilai absorbansi pada titik baca disamakan dengan workbook:

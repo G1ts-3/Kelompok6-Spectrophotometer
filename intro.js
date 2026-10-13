@@ -30,7 +30,7 @@
   lockScroll(true);
   start.focus({ preventScroll: true });
   start.addEventListener('click', () => enter(false));
-  guideBtn.addEventListener('click', () => enter(true));
+  guideBtn?.addEventListener('click', () => enter(true));
 
   dots.addEventListener('click', () => (panel.hidden ? openPanel() : closePanel()));
   close.addEventListener('click', () => closePanel());

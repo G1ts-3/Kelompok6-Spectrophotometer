@@ -611,6 +611,13 @@ for nm, z in (("Ref", BLANK_Z), ("Samp", SAMPLE_Z)):
     ray3("InternalDetRay" + nm, (.335, DY, z), (.372, DY, -.027 + (z - MID_Z) * .35))
 rod("InternalDetRayFocus", (.372, DY, -.027 + (BLANK_Z - MID_Z) * .35), (.405, DY, -.027), .0017, internal_ray, 8)
 rod("InternalDetRayFocus2", (.372, DY, -.027 + (SAMPLE_Z - MID_Z) * .35), (.405, DY, -.027), .0017, internal_ray, 8)
+# --- berkas dari kedua kuvet keluar dari kompartemen sampel, turun, lalu masuk ke modul detektor (tidak lagi putus di udara)
+FEED_X = .335
+for nm, z in (("Ref", BLANK_Z), ("Samp", SAMPLE_Z)):
+    ray3("InternalDetFeed" + nm, (MX(.030), BEAM_Y, z), (FEED_X, BEAM_Y, z))
+    mirror3("InternalDetFeedMirrorA" + nm, (FEED_X, BEAM_Y, z), (1, 0, 0), (0, -1, 0), .010, .010)
+    ray3("InternalDetFeedDrop" + nm, (FEED_X, BEAM_Y, z), (FEED_X, DY, z))
+    mirror3("InternalDetFeedMirrorB" + nm, (FEED_X, DY, z), (0, -1, 0), (1, 0, 0), .010, .010)
 rounded_box("InternalAccessoryBoard", (.44, .068, .17), (.19, .008, .22), .002, internal_pcb)
 rounded_box("InternalPowerSupply", (.45, .105, -.255), (.16, .085, .12), .006, internal_dark)
 tube("InternalFanRing", (.47, .120, .26), (.47, .120, .292), .048, internal_dark, 28)
@@ -640,6 +647,15 @@ LOWPATH = [(-.010, -.285), (.10, -.285), (.10, -.335), (.20, -.335), (.26, -.285
 for i in range(len(LOWPATH) - 1):
     a_, b_ = LOWPATH[i], LOWPATH[i + 1]
     ray3(f"InternalLowRay{i}", (a_[0], LY, a_[1]), (b_[0], LY, b_[1]))
+# --- jalur optik bawah tidak berhenti di laras: berkas keluar, naik, melintas di sisi ruang kuvet, lalu masuk ke modul detektor
+LX, LANE_Y, LANE_Z = .350, .172, -.065
+ray3("InternalLowRayExit", (.335, LY, -.285), (LX, LY, -.285), False)
+mirror3("InternalLowMirrorF", (LX, LY, -.285), (1, 0, 0), (0, 1, 0), .010, .010)
+ray3("InternalLowRayRise", (LX, LY, -.285), (LX, LANE_Y, -.285))
+mirror3("InternalLowMirrorG", (LX, LANE_Y, -.285), (0, 1, 0), (0, 0, 1), .010, .010)
+ray3("InternalLowRayAcross", (LX, LANE_Y, -.285), (LX, LANE_Y, LANE_Z))
+mirror3("InternalLowMirrorH", (LX, LANE_Y, LANE_Z), (0, 0, 1), (1, 0, 0), .010, .010)
+ray3("InternalLowRayIn", (LX, LANE_Y, LANE_Z), (.380, LANE_Y, LANE_Z), False)
 tube("InternalLampTower", (-.44, .055, -.26), (-.44, .135, -.26), .022, internal_dark, 22)
 tube("InternalLampTowerRing", (-.44, .105, -.26), (-.44, .112, -.26), .0255, gold, 22)
 sphere("InternalLampTowerBulb", (-.44, .140, -.26), .014, internal_lamp, 14, 8)
@@ -674,6 +690,9 @@ paths = [
     {"pts": [[x, IY, z] for x, z in P_W], "n": 3},
     {"pts": [[x, LY, z] for x, z in LOWPATH], "n": 4},
 ]
+paths.append({"pts": [[.335, LY, -.285], [LX, LY, -.285], [LX, LANE_Y, -.285], [LX, LANE_Y, LANE_Z], [.380, LANE_Y, LANE_Z]], "n": 2})
+for nm, z in (("Ref", BLANK_Z), ("Samp", SAMPLE_Z)):
+    paths.append({"pts": [[MX(.030), BEAM_Y, z], [FEED_X, BEAM_Y, z], [FEED_X, DY, z]], "n": 2})
 for nm, z in (("Ref", BLANK_Z), ("Samp", SAMPLE_Z)):
     paths.append({"pts": [[.335, DY, z], [.372, DY, -.027 + (z - MID_Z) * .35], [.405, DY, -.027]], "n": 2})
 doc["nodes"][0]["extras"] = {"paths": paths}

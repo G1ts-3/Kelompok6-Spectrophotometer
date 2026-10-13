@@ -30,8 +30,6 @@
         <li><b>3</b> Ukur standar dan sampel</li>
       </ul>
       <button type="button" class="welcome-start" id="welcome-start">Mulai ▸</button>
-      <button type="button" class="welcome-guide" id="welcome-guide">Lihat langkah penggunaan</button>
-      <small>Tombol <b>⋮</b> di kanan atas halaman membuka langkah penggunaan kapan saja.</small>
     </div>
   </div>
   <header class="site-header">
@@ -39,7 +37,7 @@
       <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M10 29h20M14 25l9-14 4 3-9 14M12 30c0-5 4-8 9-8M18 10l4-5 7 5-4 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <span><strong>UV–Vis Lab</strong><small>Ruang eksplorasi</small></span>
     </a>
-    <div class="header-actions"><span class="header-tag"><span class="live-dot"></span> Model interaktif</span><button type="button" class="menu-dots" id="menu-dots" aria-label="Langkah penggunaan" aria-haspopup="dialog" aria-expanded="false" aria-controls="usage-panel" title="Langkah penggunaan"><span aria-hidden="true">⋮</span></button></div>
+    <div class="header-actions"><span class="header-tag"><span class="live-dot"></span> Instruksi kerja</span><button type="button" class="menu-dots" id="menu-dots" aria-label="Langkah penggunaan" aria-haspopup="dialog" aria-expanded="false" aria-controls="usage-panel" title="Langkah penggunaan"><span aria-hidden="true">⋮</span></button></div>
   </header>
   <aside class="usage-panel" id="usage-panel" role="dialog" aria-labelledby="usage-title" hidden>
     <div class="usage-head"><div><p class="eyebrow">PANDUAN</p><h2 id="usage-title">Langkah penggunaan</h2></div><button type="button" class="usage-close" id="usage-close" aria-label="Tutup langkah penggunaan">×</button></div>
@@ -81,13 +79,13 @@
 
   <main id="atas" class="page-shell">
     <div class="page-heading">
-      <div><p class="eyebrow">SPEKTROFOTOMETER · UV–VIS</p><h1>Lihat, coba, pahami.</h1></div>
-      <p>Putar alat, pilih larutan, lalu amati apa yang terbaca di komputer.</p>
+      <div><p class="eyebrow">SPEKTROFOTOMETER UV–VIS AGILENT CARY 100</p></div>
+      
     </div>
 
     <div class="workbench">
       <section class="tray-section cuvette-panel" aria-label="Isi kuvet">
-      <div class="tray-title"><h2>Ganti kuvet</h2><p><b>Aquades ke belakang (merah); standar atau sampel ke depan (abu).</b> Pilih seri praktikum, lalu masukkan panjang gelombangnya di komputer.</p></div>
+      <div class="tray-title"><h2>Larutan uji</h2></div>
       <div class="tray-group"><span class="group-label">BLANKO</span><div id="blank-solutions" class="solution-row"></div></div>
       <div class="tray-group"><span class="group-label">DERET STANDAR </span><div id="standard-solutions" class="series-list"></div></div>
       <div class="tray-group"><span class="group-label">DERET SAMPEL </span><div id="sample-solutions" class="series-list"></div></div>
@@ -126,16 +124,12 @@
           </div>
           <div class="stage-bottom">
             <div class="stage-actions">
-              <button class="soft-button" id="lid-button" aria-pressed="false"><span aria-hidden="true">◫</span> Buka tutup</button>
+              <button class="soft-button" id="lid-button" aria-pressed="false"><span aria-hidden="true">◫</span> Buka penutup</button>
               <button class="soft-button" id="instrument-power" aria-pressed="false"><span class="tiny-led"></span> Nyalakan alat</button>
               <button class="icon-button" id="reset-view" aria-label="Atur ulang sudut pandang" title="Atur ulang sudut pandang">↺</button>
             </div>
             <div class="stage-right-actions"><button class="soft-button" id="pause-button" hidden aria-pressed="false"><span aria-hidden="true">⏸</span> <span id="pause-label">Jeda</span></button><button class="parts-button" id="parts-toggle" aria-pressed="false">Kenali bagian <span>ⓘ</span></button></div>
           </div>
-        </div>
-        <div class="flow-strip" aria-label="Jalur cahaya dalam instrumen">
-          <span class="flow-caption">DI DALAM ALAT</span>
-          <span>Source (sumber cahaya)</span><i aria-hidden="true"></i><span>Condenser</span><i aria-hidden="true"></i><span>Monochromator (prisma)</span><i aria-hidden="true"></i><span>Slit</span><i aria-hidden="true"></i><span>Sample Holder (I₀ → Iₜ)</span><i aria-hidden="true"></i><span>Detector</span>
         </div>
       </section>
 
@@ -159,24 +153,22 @@
                 <div class="software-scroll">
                   <section id="panel-scan" role="tabpanel" aria-labelledby="tab-scan" class="software-panel">
                     <div class="workflow-switch" role="group" aria-label="Metode perangkat lunak"><button id="workflow-lambda" aria-pressed="true">1 · Cari λmaks</button><button id="workflow-concentration" aria-pressed="false" disabled>2 · Pengukuran</button></div>
-                    <p class="workflow-setup" id="workflow-setup">Cari λmaks dari puncak kurva, lalu ukur standar dan sampel.</p>
                                           <div class="scan-inputs">
                       <div class="weight-panel weight-entry" id="weight-panel" hidden><label for="sample-weight">Bobot sampel (g)</label><input id="sample-weight" type="text" inputmode="decimal" autocomplete="off" aria-describedby="weight-info"><small id="weight-info"></small></div>
                       <div class="weight-panel weight-entry" id="abs-entry" hidden><label for="manual-abs">Abs input manual</label><input id="manual-abs" type="text" inputmode="decimal" autocomplete="off" placeholder="Kosong = data asli" aria-describedby="manual-abs-info"><small id="manual-abs-info">Opsional untuk sampel data praktikum. Sampel tambahan wajib diisi.</small></div>
                       </div>
                       <div class="scan-action-dock">
                       <div class="next-step" role="status"><span><small>LANGKAH BERIKUTNYA</small><strong id="next-instruction">Pilih seri 1 atau 2.</strong></span></div>
-                      <div class="lambda-entry" id="lambda-entry"><label>Cari panjang gelombang maksimum (λmaks)</label><div><button id="scan-lambda" class="primary-button" type="button">START scan λmaks <span aria-hidden="true">↗</span></button></div><small id="lambda-hint">Sumbu X panjang gelombang (nm), sumbu Y absorbansi. Puncak kurva = λmaks.</small></div>
+                      <div class="lambda-entry" id="lambda-entry"><label>Cari panjang gelombang maksimum (λmaks)</label><div><button id="scan-lambda" class="primary-button" type="button">START scan λmaks <span aria-hidden="true">↗</span></button></div></div>
                       <div class="run-controls" id="run-controls" hidden><button class="secondary-button" id="zero-button">01 · Zero blanko</button><button class="primary-button" id="scan-button">02 · START ukur <span aria-hidden="true">↗</span></button></div>
                       </div>
                       <div class="operation-progress" id="operation-progress" hidden><div><strong id="progress-title">Progres alat</strong><span id="progress-value">0%</span></div><p id="progress-phase">Menunggu alat…</p><div class="progress-track" id="progress-meter" role="progressbar" aria-label="Progres kerja alat" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="progress-fill"></i></div></div>
-                      <p class="inline-message" id="screen-status" role="status">Nyalakan UPS → alat → CPU, lalu buka software dan pilih seri 1 atau 2.</p>
                     
-<div class="screen-summary"><div><span class="micro-label">HASIL DI LAYAR</span><strong id="active-solution">Aquades</strong><small id="sample-weight-readout" class="sample-meta" hidden></small><small id="result-origin" class="sample-meta" hidden></small></div><div class="readout"><span class="micro-label"><span id="readout-caption">PADA λ</span> <span id="readout-nm">246,5</span> nm</span><strong id="readout-value">—</strong><small id="readout-unit">Abs</small></div></div>
+<div class="screen-summary"><div><strong id="active-solution">Aquades</strong><small id="sample-weight-readout" class="sample-meta" hidden></small><small id="result-origin" class="sample-meta" hidden></small></div><div class="readout"><span class="micro-label"><span id="readout-caption">PADA λ</span> <span id="readout-nm">246,5</span> nm</span><strong id="readout-value">—</strong><small id="readout-unit">Abs</small></div></div>
                     <div class="chart-card">
                       <div class="chart-heading"><span id="chart-title">Spektrum serapan</span><span class="chart-legend"><i></i> Absorbansi</span></div>
-                      <svg id="spectrum-chart" viewBox="0 0 420 208" preserveAspectRatio="none" role="img" aria-label="Grafik spektrum absorbansi"><g id="chart-grid"></g><path id="chart-area"></path><path id="chart-line"></path><g id="chart-cursor"></g><g id="chart-labels"></g><rect id="chart-hit" x="38" y="10" width="370" height="166" fill="transparent"></rect></svg>
-                      <div class="chart-foot"><span id="range-start">200 nm</span><span>Spektrum ilustratif · seret untuk eksplorasi</span><span id="range-end">400 nm</span></div>
+                      <svg id="spectrum-chart" viewBox="0 0 420 208" preserveAspectRatio="none" role="img" aria-label="Grafik spektrum absorbansi"><g id="chart-grid"></g><path id="chart-area"></path><path id="chart-line"></path><g id="chart-cursor"></g><g id="chart-labels"></g><text class="axis-title" x="2" y="8">Abs</text><rect id="chart-hit" x="38" y="10" width="370" height="166" fill="transparent"></rect></svg>
+                      <div class="chart-foot"><span id="range-start">200 nm</span><span class="axis-x-title">Wavelength (nm)</span><span id="range-end">400 nm</span></div>
                     </div>
                     <div class="software-controls">
                       <div class="data-indicator"><span>DATA AKTIF · OTOMATIS</span><strong id="dataset-name">Standar/Sampel 1 · λmaks 246,5 nm</strong></div>
@@ -199,20 +191,20 @@
                   <div class="formula-bar" id="formula-bar" hidden aria-live="polite"></div>
                 </div>
               </div>
-              <div class="series-chooser" id="series-chooser" hidden><p class="eyebrow">LANGKAH 1 · PILIH SERI</p><h3>Jalankan seri yang mana?</h3><p>Panjang gelombang maksimum (λmaks) tidak diketik; ia dicari dari puncak kurva saat scan.</p><div class="series-options"><button type="button" class="series-option" data-series="praktikum"><b>Seri 1</b><small>Standar/Sampel 1</small></button><button type="button" class="series-option" data-series="jena"><b>Seri 2</b><small>Standar/Sampel 2</small></button></div><button type="button" class="chooser-close" id="chooser-close">× Tutup software</button></div>
+              <div class="series-chooser" id="series-chooser" hidden><p class="eyebrow">LANGKAH 1 · PILIH SERI</p><div class="series-options"><button type="button" class="series-option" data-series="praktikum"><b>Seri 1</b><small>Standar/Sampel 1</small><small class="lam">λ 246,5 nm</small></button><button type="button" class="series-option" data-series="jena"><b>Seri 2</b><small>Standar/Sampel 2</small><small class="lam">λ 248,0 nm</small></button></div><button type="button" class="chooser-close" id="chooser-close">× Tutup software</button></div>
               <div class="monitor-off" id="monitor-off" hidden><span>○</span><p>Komputer mati</p><small>Nyalakan UPS, alat, lalu CPU</small></div>
             </div>
             <div class="monitor-chin"><span class="monitor-mark">UV–VIS WORKSTATION</span><span class="monitor-led off" id="monitor-led"></span></div>
           </div>
           <div class="monitor-neck"></div><div class="monitor-foot"></div>
         </div>
-        <div class="under-monitor"><span class="cable-mark"><i></i> Terhubung lewat port belakang instrumen</span><details class="help"><summary>Panduan singkat</summary><p>Nyalakan <b>UPS → alat → CPU</b>, lalu buka software. Pilih <b>Seri 1</b> atau <b>Seri 2</b> pada layar monitor, lalu tekan <b>START scan λmaks</b>: kurva Abs terhadap panjang gelombang digambar dan puncaknya menjadi λmaks (seri 1 otomatis 246,5 nm, seri 2 248,0 nm). Untuk mengulang atau berpindah seri, klik <b>Cari λmaks</b> lalu <b>Zero blanko</b> ulang. Pasang standar 0 ppm atau sampel, tekan <b>Zero blanko</b> (aquades menjadi referensi), lalu <b>START ukur</b>. Deret standar terpasang berurutan; lihat kurva pada tab <b>Kurva kalibrasi</b>. Bobot sampel dapat diubah dan Abs manual bersifat opsional di komputer; input manual menjadi titik acuan kurva ilustratif dan diberi label dalam riwayat. Progres sumber cahaya → monokromator → kuvet → detektor terlihat selama pembacaan. Selesai praktik: catat log book, tutup software, shutdown CPU, matikan alat, lalu UPS. Penyiapan larutan dan pembilasan kuvet dilakukan di laboratorium nyata.</p></details></div>
+        <div class="under-monitor"><span class="cable-mark"><i></i> Terhubung lewat port belakang instrumen</span></div>
         <p class="power-status" id="power-status" role="status">Urutan daya: UPS → alat → CPU.</p>
       </section>
     </div>
 
     
-    <footer><span>Abs bawaan pada λmaks 246,5 dan 248,0 nm mengikuti sheet Excel terlampir. Nilai yang diketik diberi label input manual; bentuk spektrum di luar titik ukur adalah ilustrasi.</span><span>UV–Vis Lab · 2026</span></footer>
+    <footer><span>UV–Vis Lab · 2026</span></footer>
   </main>
 </body>
 </html>
